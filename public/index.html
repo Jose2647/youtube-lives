@@ -229,9 +229,9 @@ function obterImagem(entidade, imagemCustom) {
 
 
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://youtube-lives.onrender.com';
     // === CONFIGURAÇÕES ===
-    const SIGNALING_SERVER = 'ws://localhost:3000';
+    const SIGNALING_SERVER = 'ws://youtube-lives.onrender.com';
    // let socket = null;
     let salaAtual = null;
     let salasDisponiveis = {};
@@ -313,7 +313,7 @@ async function inicializar() {
         document.getElementById('app').innerHTML = `
             <div class="erro">
                 <h2>Erro ao conectar com o servidor</h2>
-                <p>Verifique se o backend está rodando em <code>http://localhost:3000</code></p>
+                <p>Verifique se o backend está rodando em <code>https://youtube-lives.onrender.com</code></p>
                 <button onclick="location.reload()">Tentar novamente</button>
             </div>
         `;
@@ -7052,8 +7052,8 @@ window.entrarSala = async function(room) {
     window.apostasIntegracaoInjetado = true;
 
     // === CONFIG (AJUSTE AQUI) ===
-    const API_BASE = 'http://localhost:3000/api';  // Seu backend URL
-    const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
+    const API_BASE = 'https://youtube-lives.onrender.com/api';  // Seu backend URL
+    const SOCKET_SERVER = 'https://youtube-lives.onrender.com';  // Mesmo do chat, se compartilhado
     const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
 
     // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
