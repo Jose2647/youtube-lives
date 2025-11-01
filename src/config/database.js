@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
-import 'dotenv/config'; // Certifique-se de usar 'dotenv' ou equivalente
+import dotenv from 'dotenv';
 
-// Pega a variável de ambiente (o nome pode variar conforme seu setup)
+// Carrega o arquivo .env do mesmo diretório
+dotenv.config();
+
+// Agora você pode acessar as variáveis do .env
 const MONGO_URI = process.env.MONGO_URI;
+
+
+
 
 
 
