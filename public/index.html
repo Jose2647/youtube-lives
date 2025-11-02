@@ -228,8 +228,33 @@ function obterImagem(entidade, imagemCustom) {
 
 
 
+/*
+const API_BASE = 'http://localhost:3000';
+    // === CONFIGURAÇÕES ===
+    const SIGNALING_SERVER = 'ws://localhost:3000';
+   // let socket = null;
+    let salaAtual = null;
+    let salasDisponiveis = {};
+    let usuariosNaSala = new Set();
+    let peers = {};
+    let meuStream = null;
+    let voiceEnabled = false;
+    let abaAtual = 'salas';
+    
+        // === CONFIG (AJUSTE AQUI) ===
+  //  const API_BASE = 'http://localhost:3000/api';  // Seu backend URL
+    const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
+    const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
 
-const API_BASE = 'https://youtube-lives.onrender.com';
+    // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
+    let socketApostas = null;
+    let intervalEncerramentos = null;
+    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
+*/
+
+    
+    
+    const API_BASE = 'https://youtube-lives.onrender.com';
     // === CONFIGURAÇÕES ===
     const SIGNALING_SERVER = 'ws://youtube-lives.onrender.com';
    // let socket = null;
@@ -240,7 +265,19 @@ const API_BASE = 'https://youtube-lives.onrender.com';
     let meuStream = null;
     let voiceEnabled = false;
     let abaAtual = 'salas';
+    
+    
+        // === CONFIG (AJUSTE AQUI) ===
+  //  const API_BASE = 'https://youtube-lives.onrender.com/api';  // Seu backend URL
+    const SOCKET_SERVER = 'https://youtube-lives.onrender.com';  // Mesmo do chat, se compartilhado
+    const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
 
+    // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
+    let socketApostas = null;
+    let intervalEncerramentos = null;
+    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
+    
+    
 // Função para buscar dados do backend
 async function buscarDadosBackend(endpoint) {
     try {
@@ -7051,15 +7088,7 @@ window.entrarSala = async function(room) {
     if (window.apostasIntegracaoInjetado) return;
     window.apostasIntegracaoInjetado = true;
 
-    // === CONFIG (AJUSTE AQUI) ===
-    const API_BASE = 'https://youtube-lives.onrender.com/api';  // Seu backend URL
-    const SOCKET_SERVER = 'https://youtube-lives.onrender.com';  // Mesmo do chat, se compartilhado
-    const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
 
-    // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
-    let socketApostas = null;
-    let intervalEncerramentos = null;
-    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
 
     // === FUNÇÃO AUXILIAR: CHAMAR EXISTENTES SEM ALTERAR ===
     function chamarExistentes() {
