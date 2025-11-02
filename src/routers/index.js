@@ -76,6 +76,23 @@ router.get('/chats', async (req, res) => {
         res.status(500).send(err.message);
     }
 });
+// index.js - Adicionar esta rota
+
+// Rota para histórico de chat do jogo
+router.get('/chat-jogo/:jogoId/historico', async (req, res) => {
+    try {
+        const jogoId = parseInt(req.params.jogoId);
+        const salaId = `jogo-${jogoId}`;
+        
+        const historico = await Chat.find({ room: salaId })
+            .sort({ data: -1 })
+            .limit(100);
+        
+        res.json(historico);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // Routes for Jogos (apenas dados básicos)
 router.get('/jogos', async (req, res) => {
     try {
@@ -148,22 +165,6 @@ router.get('/jogo/:jogoId', async (req, res) => {
     }
 });
 // Rota para um time específico
-/*
-router.get('/time/:timeId', async (req, res) => {
-    try {
-        const timeId = parseInt(req.params.timeId);
-        const time = await Time.findOne({ id: timeId });
-        if (!time) {
-            return res.status(404).send('Time não encontrado');
-        }
-        // Opcional: Carregar lives associadas
-        const lives = await Live.find({ timeId });
-        res.send({ ...time.toObject(), lives });
-    } catch (err) {
-        res.status(500).send(err.message);
-    }
-});
-*/
 // Rota para time com suporte a parâmetros de chat
 router.get('/time/:timeId', async (req, res) => {
     const { jogo, estadio, chat, nome } = req.query; // Captura os parâmetros

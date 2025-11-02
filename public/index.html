@@ -28,10 +28,7 @@
     <!-- Seção de Jogos -->
     <div id="secao-jogos" class="secao">
         <h2>Jogos</h2>
-        <!--
-       <button onclick="adicionarJogo()">Criar Jogo</button> 
-     <button onclick="colarJogoCopiado()">Adicionar Jogo</button> 
-     -->
+
      
      
                  <button onclick="adicionarJogo()" style="background:#28a745; color:white; padding:8px 12px; border:none; border-radius:5px; font-size:0.9em;">
@@ -82,28 +79,18 @@
     <div id="lista-lives"></div>
 </div>
 
-
 </div>
+
+
+
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js">
 </script>
-  
-  
-<script src="css.js">
-</script>
-  
-<script>
 
   
+
   
-  /////////////
-/////////////
-///////////// variaveis-globais.js
-/////////////
-/////////////
-
-
-
-</script>
 <script >
   
   // ===== INICIALIZAÇÃO GLOBAL SEGURA =====
@@ -134,7 +121,8 @@ let dados = {
 
 let jogoTemporarioParaCompartilhar = null;
 let acoesEstadioVisiveis = true;
-
+// Variável global para instância atual
+let modalChatAtual = null;
 
 // === CONEXÕES WEBRTC ===
 let jogoCopiado = null;
@@ -228,10 +216,24 @@ function obterImagem(entidade, imagemCustom) {
 
 
 
-/*
 const API_BASE = 'http://localhost:3000';
     // === CONFIGURAÇÕES ===
-    const SIGNALING_SERVER = 'ws://localhost:3000';
+    const SIGNALING_SERVER = 'wss://localhost:3000';
+  
+  // Variáveis globais (devem ser definidas no escopo global do seu arquivo HTML/JS principal)
+
+
+
+
+
+
+
+
+
+// Variáveis de controle do modal (para simulação)
+
+
+  
    // let socket = null;
     let salaAtual = null;
     let salasDisponiveis = {};
@@ -240,7 +242,7 @@ const API_BASE = 'http://localhost:3000';
     let meuStream = null;
     let voiceEnabled = false;
     let abaAtual = 'salas';
-    
+    /*
         // === CONFIG (AJUSTE AQUI) ===
   //  const API_BASE = 'http://localhost:3000/api';  // Seu backend URL
     const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
@@ -857,6 +859,24 @@ window.onload = function() {
 ////////////
 ////////////
 
+/*
+
+let modalSocket = null;
+let modalUserName = '';
+let modalCurrentRoom = '';
+*/
+let modalActiveRooms = new Map();
+let chatModalAberto = false;
+let chatModalElement = null;
+// P2PChatHybrid.js
+let modalSocket = null;
+//let peerConnection = null;
+//let dataChannel = null;
+let remoteSocketId = null;
+
+let modalUserName = 'Usuario';
+let modalCurrentRoom = '';
+let modalP2PMode = false; // false = modo servidor, true = modo P2P
 // Funções para exibir jogos
 function carregarJogos() {
     const container = document.getElementById('lista-jogos');
@@ -989,20 +1009,11 @@ function carregarJogos() {
         };
         
           // === BOTÃO CRIAR/ENTRAR NA SALA DO JOGO ===
-       /*   const btnSala = document.createElement('button');
-          btnSala.innerHTML = '🏠 Sala';
-          btnSala.style = `
-              padding:6px 10px; border:none; border-radius:5px; 
-              color:white; background:#e83e8c; cursor:pointer; 
-              font-size:0.85em; min-width:70px; transition:0.2s;
-          `;
-          btnSala.onclick = () => criarOuEntrarSalaJogo(jogo.id);
-          btnSala.title = `Criar/Entrar na sala: ${jogo.nome}`;
-          */
+
           console.log("___jogo",jogo.nome)
           const btnSalaEstadio = document.createElement('button');
 btnSalaEstadio.innerHTML = '💬 Chat jogo';
-btnSalaEstadio.onclick = () => entrarSalaJogo(jogo.id);
+btnSalaEstadio.onclick = () => abrirChatModal(jogo.id);
           botoesContainer.appendChild(btnSalaEstadio);
 
         // === MONTAGEM FINAL ===
@@ -1016,6 +1027,911 @@ btnSalaEstadio.onclick = () => entrarSalaJogo(jogo.id);
     });
 
 }
+
+
+
+/*
+
+function updateModalActiveRoomsDisplay() {
+    const display = document.getElementById('modalActiveRooms');
+    if (!display) return;
+
+    display.innerHTML = '';
+    
+    modalActiveRooms.forEach((messages, roomName) => {
+        const roomDiv = document.createElement('div');
+        roomDiv.innerHTML = `📁 ${roomName} (${messages.length} mensagens)`;
+        display.appendChild(roomDiv);
+    });
+}
+function joinServerRoom(roomType, roomId) {
+  if (!modalSocket) return alert('Conecte primeiro');
+  const roomName = `${roomType}-${roomId}-visitante`;
+  modalCurrentRoom = roomName;
+
+  modalSocket.emit('join-' + roomType, {
+    [roomType + 'Id']: roomId,
+    user: modalUserName,
+    merito: 'visitante'
+  });
+
+  modalSocket.emit('request-chat-history', { room: roomName });
+  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
+}
+// Função para atualizar o seletor de salas no modal
+function updateModalRoomSelector() {
+    const selector = document.getElementById('modalRoomSelector');
+    if (!selector) return;
+
+    selector.innerHTML = '<option value="">-- Selecionar Sala --</option>';
+    
+    modalActiveRooms.forEach((messages, roomName) => {
+        const option = document.createElement('option');
+        option.value = roomName;
+        option.textContent = roomName;
+        option.selected = (roomName === modalCurrentRoom);
+        selector.appendChild(option);
+    });
+}
+// Função para entrar em sala no modal
+function joinModalRoom() {
+    if (!modalSocket) {
+        alert('Conecte primeiro');
+        return;
+    }
+
+    const roomType = document.getElementById('modalRoomType').value;
+    const roomId = document.getElementById('modalRoomId').value;
+    const roomName = `${roomType}-${roomId}-visitante`;
+
+    // Se já está na sala, não faz nada
+    if (modalActiveRooms.has(roomName)) {
+        addModalMessage('Sistema', `Já está na sala ${roomName}`, 'system');
+        return;
+    }
+
+    // Entra na sala via socket
+    modalSocket.emit('join-' + roomType, {
+        [roomType + 'Id']: roomId,
+        user: modalUserName,
+        merito: 0
+    });
+
+    // Adiciona sala à lista local
+    modalActiveRooms.set(roomName, []);
+    
+    // Se é a primeira sala, seleciona automaticamente
+    if (modalActiveRooms.size === 1) {
+        modalCurrentRoom = roomName;
+    }
+
+    updateModalRoomSelector();
+    updateModalActiveRoomsDisplay();
+    // Função para atualizar a exibição de salas ativas no modal
+
+    addModalMessage('Sistema', `Entrou na sala: ${roomName}`, 'system');
+
+    // Solicita histórico da sala
+    modalSocket.emit('request-chat-history', { room: roomName });
+}
+// Função para criar e abrir o modal
+function abrirChatModal() {
+    if (chatModalAberto) return;
+    
+    // Cria o elemento do modal
+    chatModalElement = document.createElement('div');
+    chatModalElement.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    // Cria o conteúdo do modal
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    `;
+    
+    // Adiciona botão de fechar
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+    `;
+    closeButton.onclick = fecharChatModal;
+    
+    // Cria o conteúdo do chat dentro do modal
+    const chatHTML = `
+        <div>
+            <h3>Conectar</h3>
+            <input type="text" id="modalServerUrl" value="http://localhost:3000" placeholder="URL do servidor">
+            <input type="text" id="modalUserName" value="UsuarioTeste" placeholder="Seu nome">
+            <button onclick="connectModalSocket()">Conectar</button>
+            <button onclick="disconnectModalSocket()">Desconectar</button>
+        </div>
+
+        <div>
+            <h3>Entrar em Salas</h3>
+            <select id="modalRoomType">
+                <option value="jogo">Jogo</option>
+                <option value="time">Time</option>
+                <option value="live">Live</option>
+            </select>
+            <input type="text" id="modalRoomId" value="123" placeholder="ID">
+            <button onclick="joinModalRoom()">Entrar na Sala</button>
+            
+            <h4>Salas Ativas:</h4>
+            <div id="modalActiveRooms" style="border:1px solid #ccc; height:100px; overflow-y:scroll; padding:10px; margin:10px 0;"></div>
+        </div>
+
+        <div>
+            <h3>Mensagens</h3>
+            <select id="modalRoomSelector" onchange="switchModalRoom()" style="margin-bottom:10px;">
+                <option value="">-- Selecionar Sala --</option>
+            </select>
+            <div id="modalMessages" style="border:1px solid #ccc; height:300px; overflow-y:scroll; padding:10px;"></div>
+            <input type="text" id="modalMessageInput" placeholder="Digite sua mensagem" style="width:70%">
+            <button onclick="sendModalMessage()">Enviar</button>
+        </div>
+    `;
+    
+    modalContent.innerHTML = chatHTML;
+    modalContent.appendChild(closeButton);
+    chatModalElement.appendChild(modalContent);
+    document.body.appendChild(chatModalElement);
+    chatModalAberto = true;
+    
+    // CONECTA AUTOMATICAMENTE ao abrir o modal
+    setTimeout(() => {
+        connectModalSocket();
+    }, 100);
+    
+    // Fecha modal ao clicar fora
+    chatModalElement.onclick = function(e) {
+        if (e.target === chatModalElement) {
+          document.getElementById('modalMessages').innerHTML = '';
+
+            fecharChatModal();
+        }
+    };
+
+    // Enter para enviar mensagem no modal
+    setTimeout(() => {
+        const modalInput = document.getElementById('modalMessageInput');
+        if (modalInput) {
+            modalInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendModalMessage();
+                }
+            });
+        }
+    }, 200);
+}
+// Servidor de sinalização (Socket.io)
+function connectChat(serverUrl, userName) {
+  modalUserName = userName;
+  modalSocket = io(serverUrl);
+
+  modalSocket.on('connect', () => {
+    console.log('🔗 Conectado ao servidor:', modalSocket.id);
+    addModalMessage('Sistema', 'Conectado ao servidor', 'system');
+  });
+
+  modalSocket.on('disconnect', () => {
+    addModalMessage('Sistema', 'Desconectado', 'system');
+  });
+
+  // Modo servidor → mensagens
+  modalSocket.on('chat-message', (data) => {
+    const room = getModalRoomFromData(data);
+    addModalMessage(data.usuario, data.mensagem, room);
+  });
+
+  modalSocket.on('chat-history', (history) => {
+    history.forEach(msg => {
+      const room = getModalRoomFromData(msg);
+      addModalMessage(msg.usuario, msg.mensagem, room);
+    });
+  });
+
+  // WebRTC Signaling (para P2P)
+  modalSocket.on('offer', async (data) => {
+    console.log('📨 Offer recebida');
+    remoteSocketId = data.from;
+    await criarPeer(false); // receptor
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    modalSocket.emit('answer', { to: data.from, answer });
+  });
+
+  modalSocket.on('answer', async (data) => {
+    console.log('📨 Answer recebida');
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+  });
+
+  modalSocket.on('ice-candidate', async (data) => {
+    try {
+      await peerConnection.addIceCandidate(data.candidate);
+    } catch (err) {
+      console.error('Erro ao adicionar ICE:', err);
+    }
+  });
+}
+// Entrar em sala no modo servidor
+function joinServerRoom(roomType, roomId) {
+  if (!modalSocket) return alert('Conecte primeiro');
+  const roomName = `${roomType}-${roomId}-visitante`;
+  modalCurrentRoom = roomName;
+
+  modalSocket.emit('join-' + roomType, {
+    [roomType + 'Id']: roomId,
+    user: modalUserName,
+    merito: 'visitante'
+  });
+
+  modalSocket.emit('request-chat-history', { room: roomName });
+  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
+}
+// Enviar mensagem (modo híbrido)
+function sendHybridMessage(message) {
+  if (modalP2PMode && dataChannel && dataChannel.readyState === 'open') {
+    const msg = { usuario: modalUserName, mensagem: message };
+    dataChannel.send(JSON.stringify(msg));
+    addModalMessage(modalUserName, message, modalCurrentRoom); // ✅ CORRIGIDO: Exibe mensagem localmente
+  } else {
+    if (!modalSocket) return alert('Sem conexão com servidor');
+    if (!modalCurrentRoom) return alert('Entre em uma sala primeiro');
+    const [type, id] = modalCurrentRoom.split('-');
+
+    const payload = {
+      user: modalUserName,
+      message,
+      merito: 'visitante'
+    };
+
+
+    modalSocket.emit('chat-message', payload);
+    addModalMessage(modalUserName, message, modalCurrentRoom); // ✅ CORRIGIDO: Exibe mensagem localmente
+  }
+}
+// =========================
+// === FUNÇÕES P2P CHAT ===
+// =========================
+async function iniciarP2PChat(serverUrl, userName, roomType, roomId) {
+  modalP2PMode = true;
+  connectChat(serverUrl, userName);
+
+  modalSocket.on('connect', async () => {
+    console.log('🔗 Conectado (modo P2P)');
+    modalCurrentRoom = `${roomType}-${roomId}-visitante`;
+
+    // Entra na sala
+    modalSocket.emit('join-' + roomType, {
+      [roomType + 'Id']: roomId,
+      user: modalUserName,
+      merito: 'visitante'
+    });
+
+    // ✅ CORRIGIDO: Solicita histórico da sala (mensagens salvas no servidor)
+    modalSocket.emit('request-chat-history', { room: modalCurrentRoom });
+
+    // Pede lista de peers na sala
+    setTimeout(() => {
+      modalSocket.emit('request-peers', { room: modalCurrentRoom });
+    }, 500);
+  });
+
+  // Quando o servidor responder com a lista de peers:
+  modalSocket.on('peers-list', async (peers) => {
+    if (peers.length === 0) {
+      console.log('🟢 Sou o primeiro usuário da sala → caller');
+      // Primeiro usuário — não cria offer ainda, espera o segundo entrar
+    } else {
+      // Já existe alguém na sala, então sou o segundo
+      remoteSocketId = peers[0];
+      console.log('🔵 Sou o segundo usuário → receiver de', remoteSocketId);
+      await criarPeer(true); // chama o offer para o remote
+    }
+  });
+
+  // Atualiza a lista de peers quando o segundo entra
+  modalSocket.on('room-user-count', async ({ room, count }) => {
+    if (room === modalCurrentRoom && count === 2 && !remoteSocketId) {
+      console.log('👥 Dois usuários conectados, iniciando handshake...');
+      modalSocket.emit('request-peers', { room: modalCurrentRoom });
+    }
+  });
+}
+async function criarPeer(isCaller = true) {
+  peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // ✅ Google STUN
+  });
+
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate && remoteSocketId) {
+      modalSocket.emit('ice-candidate', {
+        to: remoteSocketId,
+        candidate: event.candidate
+      });
+    }
+  };
+
+  peerConnection.onconnectionstatechange = () => {
+    console.log('🌐 Estado da conexão:', peerConnection.connectionState);
+  };
+
+
+    if (isCaller && remoteSocketId) {
+  dataChannel = peerConnection.createDataChannel('chat');
+  configurarDataChannel(dataChannel);
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  modalSocket.emit('offer', { to: remoteSocketId, offer });
+} else {
+    peerConnection.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      configurarDataChannel(dataChannel);
+    };
+  }
+}
+function configurarDataChannel(channel) {
+  channel.onopen = () => console.log('📡 Canal P2P aberto');
+  channel.onclose = () => console.log('📴 Canal P2P fechado');
+  channel.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    addModalMessage(data.usuario, data.mensagem, modalCurrentRoom);
+  };
+}
+// =========================
+// === FUNÇÕES AUXILIARES ===
+// =========================
+function getModalRoomFromData(data) {
+  if (data.jogoId) return `jogo-${data.jogoId}-visitante`;
+  if (data.timeId) return `time-${data.timeId}-visitante`;
+  if (data.liveId) return `live-${data.liveId}-visitante`;
+  return data.room || 'unknown';
+}
+async function connectModalSocket() {
+  const serverUrl = document.getElementById('modalServerUrl').value;
+  const userName = document.getElementById('modalUserName').value;
+  const roomType = document.getElementById('modalRoomType').value;
+  const roomId = document.getElementById('modalRoomId').value;
+
+  try {
+    modalP2PMode = true;
+    await iniciarP2PChat(serverUrl, userName, roomType, roomId);
+    console.log('✅ Modo P2P ativo');
+  } catch (err) {
+    console.warn('⚠️ Erro no P2P, voltando para modo servidor:', err);
+    modalP2PMode = false;
+    connectChat(serverUrl, userName);
+    joinServerRoom(roomType, roomId);
+  }
+}
+function addModalMessage(user, text, room) {
+  const box = document.getElementById('modalMessages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<strong>${user}:</strong> ${text}`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function sendModalMessage() {
+  const input = document.getElementById('modalMessageInput');
+  const message = input.value.trim();
+  if (!message) return;
+  sendHybridMessage(message);
+  input.value = '';
+}
+
+*/
+
+// Função para desconectar o socket do modal
+function disconnectModalSocket() {
+    if (modalSocket) {
+        modalSocket.disconnect();
+        modalSocket = null;
+        modalActiveRooms.clear();
+        updateModalRoomSelector();
+        updateModalActiveRoomsDisplay();
+        addModalMessage('Sistema', 'Desconectado', 'system');
+    }
+}
+// Função para fechar o modal
+function fecharChatModal() {
+    if (chatModalElement && chatModalAberto) {
+        // Desconecta o socket ao fechar o modal
+        disconnectModalSocket();
+        
+        document.body.removeChild(chatModalElement);
+        chatModalElement = null;
+        chatModalAberto = false;
+        modalActiveRooms.clear();
+        modalCurrentRoom = '';
+    }
+}
+
+
+
+
+function joinServerRoom(roomType, roomId) {
+  if (!modalSocket) return alert('Conecte primeiro');
+  const roomName = `${roomType}-${roomId}-visitante`;
+  modalCurrentRoom = roomName;
+
+  modalSocket.emit('join-' + roomType, {
+    [roomType + 'Id']: roomId,
+    user: modalUserName,
+    merito: 'visitante'
+  });
+
+  modalSocket.emit('request-chat-history', { room: roomName });
+  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
+}
+// Função para atualizar o seletor de salas no modal
+function updateModalRoomSelector() {
+    const selector = document.getElementById('modalRoomSelector');
+    if (!selector) return;
+
+    selector.innerHTML = '<option value="">-- Selecionar Sala --</option>';
+    
+    modalActiveRooms.forEach((messages, roomName) => {
+        const option = document.createElement('option');
+        option.value = roomName;
+        option.textContent = roomName;
+        option.selected = (roomName === modalCurrentRoom);
+        selector.appendChild(option);
+    });
+}
+
+function updateModalActiveRoomsDisplay() {
+    const display = document.getElementById('modalActiveRooms');
+    if (!display) return;
+
+    display.innerHTML = '';
+    
+    modalActiveRooms.forEach((messages, roomName) => {
+        const roomDiv = document.createElement('div');
+        roomDiv.innerHTML = `📁 ${roomName} (${messages.length} mensagens)`;
+        display.appendChild(roomDiv);
+    });
+}
+// Função para entrar em sala no modal
+function joinModalRoom() {
+    if (!modalSocket) {
+        alert('Conecte primeiro');
+        return;
+    }
+
+    const roomType = document.getElementById('modalRoomType').value;
+    const roomId = document.getElementById('modalRoomId').value;
+    const roomName = `${roomType}-${roomId}-visitante`;
+
+    // Se já está na sala, não faz nada
+    if (modalActiveRooms.has(roomName)) {
+        addModalMessage('Sistema', `Já está na sala ${roomName}`, 'system');
+        return;
+    }
+
+    // Entra na sala via socket
+    modalSocket.emit('join-' + roomType, {
+        [roomType + 'Id']: roomId,
+        user: modalUserName,
+        merito: 0
+    });
+
+    // Adiciona sala à lista local
+    modalActiveRooms.set(roomName, []);
+    
+    // Se é a primeira sala, seleciona automaticamente
+    if (modalActiveRooms.size === 1) {
+        modalCurrentRoom = roomName;
+    }
+
+    updateModalRoomSelector();
+    updateModalActiveRoomsDisplay();
+    // Função para atualizar a exibição de salas ativas no modal
+
+    addModalMessage('Sistema', `Entrou na sala: ${roomName}`, 'system');
+
+    // Solicita histórico da sala
+    modalSocket.emit('request-chat-history', { room: roomName });
+}
+
+
+// Função para criar e abrir o modal
+function abrirChatModal() {
+    if (chatModalAberto) return;
+    
+    // Cria o elemento do modal
+    chatModalElement = document.createElement('div');
+    chatModalElement.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    // Cria o conteúdo do modal
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    `;
+    
+    // Adiciona botão de fechar
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+    `;
+    closeButton.onclick = fecharChatModal;
+    
+    // Cria o conteúdo do chat dentro do modal
+    const chatHTML = `
+        <div>
+            <h3>Conectar</h3>
+            <input type="text" id="modalServerUrl" value="http://localhost:3000" placeholder="URL do servidor">
+            <input type="text" id="modalUserName" value="UsuarioTeste" placeholder="Seu nome">
+            <button onclick="connectModalSocket()">Conectar</button>
+            <button onclick="disconnectModalSocket()">Desconectar</button>
+        </div>
+
+        <div>
+            <h3>Entrar em Salas</h3>
+            <select id="modalRoomType">
+                <option value="jogo">Jogo</option>
+                <option value="time">Time</option>
+                <option value="live">Live</option>
+            </select>
+            <input type="text" id="modalRoomId" value="123" placeholder="ID">
+            <button onclick="joinModalRoom()">Entrar na Sala</button>
+            
+            <h4>Salas Ativas:</h4>
+            <div id="modalActiveRooms" style="border:1px solid #ccc; height:100px; overflow-y:scroll; padding:10px; margin:10px 0;"></div>
+        </div>
+
+        <div>
+            <h3>Mensagens</h3>
+            <select id="modalRoomSelector" onchange="switchModalRoom()" style="margin-bottom:10px;">
+                <option value="">-- Selecionar Sala --</option>
+            </select>
+            <div id="modalMessages" style="border:1px solid #ccc; height:300px; overflow-y:scroll; padding:10px;"></div>
+            <input type="text" id="modalMessageInput" placeholder="Digite sua mensagem" style="width:70%">
+            <button onclick="sendModalMessage()">Enviar</button>
+        </div>
+    `;
+    
+    modalContent.innerHTML = chatHTML;
+    modalContent.appendChild(closeButton);
+    chatModalElement.appendChild(modalContent);
+    document.body.appendChild(chatModalElement);
+    chatModalAberto = true;
+    
+    // CONECTA AUTOMATICAMENTE ao abrir o modal
+    setTimeout(() => {
+        connectModalSocket();
+    }, 100);
+    
+    // Fecha modal ao clicar fora
+    chatModalElement.onclick = function(e) {
+        if (e.target === chatModalElement) {
+          document.getElementById('modalMessages').innerHTML = '';
+
+            fecharChatModal();
+        }
+    };
+
+    // Enter para enviar mensagem no modal
+    setTimeout(() => {
+        const modalInput = document.getElementById('modalMessageInput');
+        if (modalInput) {
+            modalInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendModalMessage();
+                }
+            });
+        }
+    }, 200);
+}
+// Função para fechar o modal
+function fecharChatModal() {
+    if (chatModalElement && chatModalAberto) {
+        // Desconecta o socket ao fechar o modal
+        disconnectModalSocket();
+        
+        document.body.removeChild(chatModalElement);
+        chatModalElement = null;
+        chatModalAberto = false;
+        modalActiveRooms.clear();
+        modalCurrentRoom = '';
+    }
+}
+// Servidor de sinalização (Socket.io)
+function connectChat(serverUrl, userName) {
+  modalUserName = userName;
+  modalSocket = io(serverUrl);
+
+  modalSocket.on('connect', () => {
+    console.log('🔗 Conectado ao servidor:', modalSocket.id);
+    addModalMessage('Sistema', 'Conectado ao servidor', 'system');
+  });
+
+  modalSocket.on('disconnect', () => {
+    addModalMessage('Sistema', 'Desconectado', 'system');
+  });
+
+  // Modo servidor → mensagens
+  modalSocket.on('chat-message', (data) => {
+    const room = getModalRoomFromData(data);
+    addModalMessage(data.usuario, data.mensagem, room);
+  });
+
+  modalSocket.on('chat-history', (history) => {
+    history.forEach(msg => {
+      const room = getModalRoomFromData(msg);
+      addModalMessage(msg.usuario, msg.mensagem, room);
+    });
+  });
+
+  // WebRTC Signaling (para P2P)
+  modalSocket.on('offer', async (data) => {
+    console.log('📨 Offer recebida');
+    remoteSocketId = data.from;
+    await criarPeer(false); // receptor
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    modalSocket.emit('answer', { to: data.from, answer });
+  });
+
+  modalSocket.on('answer', async (data) => {
+    console.log('📨 Answer recebida');
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+  });
+
+  modalSocket.on('ice-candidate', async (data) => {
+    try {
+      await peerConnection.addIceCandidate(data.candidate);
+    } catch (err) {
+      console.error('Erro ao adicionar ICE:', err);
+    }
+  });
+}
+// Entrar em sala no modo servidor
+function joinServerRoom(roomType, roomId) {
+  if (!modalSocket) return alert('Conecte primeiro');
+  const roomName = `${roomType}-${roomId}-visitante`;
+  modalCurrentRoom = roomName;
+
+  modalSocket.emit('join-' + roomType, {
+    [roomType + 'Id']: roomId,
+    user: modalUserName,
+    merito: 'visitante'
+  });
+
+  modalSocket.emit('request-chat-history', { room: roomName });
+  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
+}
+// Enviar mensagem (modo híbrido)
+function sendHybridMessage(message) {
+  if (modalP2PMode && dataChannel && dataChannel.readyState === 'open') {
+    const msg = { usuario: modalUserName, mensagem: message };
+    dataChannel.send(JSON.stringify(msg));
+    addModalMessage(modalUserName, message, modalCurrentRoom); 
+  } else {
+    if (!modalSocket) return alert('Sem conexão com servidor');
+    if (!modalCurrentRoom) return alert('Entre em uma sala primeiro');
+    const [type, id] = modalCurrentRoom.split('-');
+
+    const payload = {
+      user: modalUserName,
+      message,
+      merito: 'visitante'
+    };
+   /* if (type === 'jogo') payload.jogoId = id;
+    if (type === 'time') payload.timeId = id;
+    if (type === 'live') payload.liveId = id;
+    */
+
+    modalSocket.emit('chat-message', payload);
+    addModalMessage(modalUserName, message, modalCurrentRoom);
+  }
+}
+// =========================
+// === FUNÇÕES P2P CHAT ===
+// =========================
+async function iniciarP2PChat(serverUrl, userName, roomType, roomId) {
+  modalP2PMode = true;
+  connectChat(serverUrl, userName);
+
+  modalSocket.on('connect', async () => {
+    console.log('🔗 Conectado (modo P2P)');
+    modalCurrentRoom = `${roomType}-${roomId}-visitante`;
+
+    // Entra na sala
+    modalSocket.emit('join-' + roomType, {
+      [roomType + 'Id']: roomId,
+      user: modalUserName,
+      merito: 'visitante'
+    });
+
+    // Solicita histórico da sala (mensagens salvas no servidor)
+    modalSocket.emit('request-chat-history', { room: modalCurrentRoom });
+
+    // Pede lista de peers na sala
+    setTimeout(() => {
+      modalSocket.emit('request-peers', { room: modalCurrentRoom });
+    }, 500);
+  });
+
+  // Quando o servidor responder com a lista de peers:
+  modalSocket.on('peers-list', async (peers) => {
+    if (peers.length === 0) {
+      console.log('🟢 Sou o primeiro usuário da sala → caller');
+      // Primeiro usuário — não cria offer ainda, espera o segundo entrar
+    } else {
+      // Já existe alguém na sala, então sou o segundo
+      remoteSocketId = peers[0];
+      console.log('🔵 Sou o segundo usuário → receiver de', remoteSocketId);
+      await criarPeer(true); // chama o offer para o remote
+    }
+  });
+
+  // Atualiza a lista de peers quando o segundo entra
+  modalSocket.on('room-user-count', async ({ room, count }) => {
+    if (room === modalCurrentRoom && count === 2 && !remoteSocketId) {
+      console.log('👥 Dois usuários conectados, iniciando handshake...');
+      modalSocket.emit('request-peers', { room: modalCurrentRoom });
+    }
+  });
+}
+async function criarPeer(isCaller = true) {
+  peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // ✅ Google STUN
+  });
+
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate && remoteSocketId) {
+      modalSocket.emit('ice-candidate', {
+        to: remoteSocketId,
+        candidate: event.candidate
+      });
+    }
+  };
+
+  peerConnection.onconnectionstatechange = () => {
+    console.log('🌐 Estado da conexão:', peerConnection.connectionState);
+  };
+
+
+    if (isCaller && remoteSocketId) {
+  dataChannel = peerConnection.createDataChannel('chat');
+  configurarDataChannel(dataChannel);
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  modalSocket.emit('offer', { to: remoteSocketId, offer });
+} else {
+    peerConnection.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      configurarDataChannel(dataChannel);
+    };
+  }
+}
+
+// 🎯 FUNÇÃO ATUALIZADA COM LOGS DE DIAGNÓSTICO
+function configurarDataChannel(channel) {
+  channel.onopen = () => {
+    console.log('📡 Canal P2P aberto. DataChannel ReadyState:', channel.readyState);
+  };
+  channel.onclose = () => {
+    console.log('📴 Canal P2P fechado. DataChannel ReadyState:', channel.readyState);
+  };
+  channel.onerror = (error) => { // ⚠️ NOVO: Captura erros do canal
+    console.error('⚠️ Erro no DataChannel:', error);
+  };
+  channel.onmessage = (event) => {
+    console.log('📬 Mensagem P2P recebida:', event.data); // ⚠️ NOVO: Loga mensagem recebida
+    try {
+      const data = JSON.parse(event.data);
+      addModalMessage(data.usuario, data.mensagem, modalCurrentRoom);
+    } catch (err) {
+      console.error('Erro ao processar mensagem P2P:', err);
+    }
+  };
+}
+
+// =========================
+// === FUNÇÕES AUXILIARES ===
+// =========================
+function getModalRoomFromData(data) {
+  if (data.jogoId) return `jogo-${data.jogoId}-visitante`;
+  if (data.timeId) return `time-${data.timeId}-visitante`;
+  if (data.liveId) return `live-${data.liveId}-visitante`;
+  return data.room || 'unknown';
+}
+async function connectModalSocket() {
+  const serverUrl = document.getElementById('modalServerUrl').value;
+  const userName = document.getElementById('modalUserName').value;
+  const roomType = document.getElementById('modalRoomType').value;
+  const roomId = document.getElementById('modalRoomId').value;
+
+  try {
+    modalP2PMode = true;
+    await iniciarP2PChat(serverUrl, userName, roomType, roomId);
+    console.log('✅ Modo P2P ativo');
+  } catch (err) {
+    console.warn('⚠️ Erro no P2P, voltando para modo servidor:', err);
+    modalP2PMode = false;
+    connectChat(serverUrl, userName);
+    joinServerRoom(roomType, roomId);
+  }
+}
+function addModalMessage(user, text, room) {
+  const box = document.getElementById('modalMessages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<strong>${user}:</strong> ${text}`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function sendModalMessage() {
+  const input = document.getElementById('modalMessageInput');
+  const message = input.value.trim();
+  if (!message) return;
+  sendHybridMessage(message);
+  input.value = '';
+}
+
+
+
+
+
+
+
+
+
 function carregarEstadiosDoJogo(jogoId) {
     const container = document.getElementById('lista-estadios');
     container.innerHTML = '';
@@ -3399,18 +4315,6 @@ function adicionarBotoesApostasDesafios() {
             container.appendChild(botaoApostas);
         }
 
-        // Botão de Desafios
-      /*  if (!videoInfo.querySelector('.botao-desafios-custom')) {
-            const botaoDesafios = document.createElement('button');
-            botaoDesafios.className = 'botao-desafios-custom';
-            botaoDesafios.setAttribute('aria-label', 'Abrir sala de desafios');
-            botaoDesafios.innerHTML = '🏆 Desafios';
-            if (salaDesafios && salaDesafios.desafios.length > 0) {
-                botaoDesafios.classList.add('with-red-dot');
-            }
-            botaoDesafios.addEventListener('click', () => abrirModalDesafios(videoInfo));
-            container.appendChild(botaoDesafios);
-        }*/
 
         if (!videoInfo.contains(container)) {
             videoInfo.appendChild(container);
@@ -3459,6 +4363,13 @@ function mostrarNotificacao(mensagem, tipo = 'info', targetUser = null) {
         salvarDados();
     }
 }
+
+
+
+
+
+
+
 function atualizarIndicadoresApostas() {
     const videoInfos = document.querySelectorAll('.video-info');
 
@@ -6111,1228 +7022,539 @@ header button:hover {
     }
 `;
 document.head.appendChild(style);
-
-
-
-// ===== CHAT GLOBAL INJETADO VIA JAVASCRIPT =====
-// ===== CHAT WEBRTC COM SALAS - INJETADO VIA JAVASCRIPT =====
-// === ENTRAR SALA - CORRIGIDA ===
-// === ENTRAR SALA - MAIS ROBUSTA =
-
-
-// === ENTRAR SALA - MAIS ROBUSTA COM VERIFICAÇÃO DE SOCKET ===
-window.entrarSala = async function(room) {
-  //  console.log('🚪 entrarSala chamada com room:', room);
-/*    console.log('📊 Socket status:', {
-        socket: !!socket,
-        socketConectado: socket?.connected,
-        salasDisponiveis: Object.keys(salasDisponiveis || {}).length
-    });*/
-    
-    if (!room) {
-        console.error('❌ Nome da sala é undefined ou vazio');
-        mostrarNotificacao('Erro: Sala não especificada', 'erro');
-        return;
+/*
+// modalChatJogo.js
+class ModalChatJogo {
+    constructor(jogoId, jogoNome) {
+        this.jogoId = jogoId;
+        this.jogoNome = jogoNome;
+        this.salaId = `jogo-${jogoId}`;
+        this.peers = new Map();
+        this.localStream = null;
+        this.isAudioEnabled = false;
+        this.socket = null;
+        this.init();
     }
 
-    // ⭐⭐ CORREÇÃO: Verificar se socket está conectado
-    if (!socket || !socket.connected) {
-        console.error('❌ Socket não conectado, tentando reconectar...');
-        conectarSocket();
-        
-        // Tentar novamente após reconexão
-        setTimeout(() => {
-            /*console.log('🔄 Retentando entrarSala após reconexão');*/
-            entrarSala(room);
-        }, 1000);
-        return;
+    init() {
+        this.createModal();
+        this.initializeSocket();
     }
 
-    // ⭐⭐ CORREÇÃO: Garantir que salasDisponiveis existe
-    if (!salasDisponiveis) {
-        console.warn('⚠️ salasDisponiveis não definido, inicializando...');
-        salasDisponiveis = {};
-    }
-
-    // Se a sala não existe, criar automaticamente
-    if (!salasDisponiveis[room]) {
-       /* console.log('➕ Criando sala automaticamente:', room);*/
-        salasDisponiveis[room] = {
-            nome: room,
-            usuarios: 1
-        };
-        
-        if (socket) {
-            socket.emit('create-room', {
-                room: room,
-                nome: room,
-                criador: usuarioLogado?.nome || 'Anônimo'
-            });
-        }
-    }
-
-    // ⭐⭐ CORREÇÃO: Verificar se a sala tem nome antes de usar
-    const infoSala = salasDisponiveis[room];
-    const nomeDaSala = infoSala?.nome || room;
-    
-  /*  console.log('✅ Sala configurada:', { room, nomeDaSala, infoSala });*/
-
-    if (salaAtual === room) {
-       /* console.log('✅ Já está na sala, mudando para aba chat');*/
-        mudarAba('chat');
-        return;
-    }
-
-    if (salaAtual) {
-        socket.emit('leave-room', { room: salaAtual });
-        socket.emit('voice-leave', { room: salaAtual });
-        desativarVoz();
-    }
-
-    salaAtual = room;
-    
-    // ENTRAR NA SALA NO SERVIDOR
-    socket.emit('join-room', {
-        room: room,
-        user: usuarioLogado?.nome || 'Visitante',
-        merito: usuarioLogado?.merito || 0
-    });
-
-    // ATUALIZAR INTERFACE
-    document.getElementById('chatInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
-    document.getElementById('voiceBtn').disabled = false;
-    document.getElementById('chatInput').placeholder = `Mensagem em ${nomeDaSala}...`;
-    
-    // ⭐⭐ CORREÇÃO: Limpar mensagens de forma segura
-    const chatMessages = document.getElementById('chatMessages');
-    if (chatMessages) chatMessages.innerHTML = '';
-    
-    // ATUALIZAR TÍTULO E STATUS
-    document.getElementById('headerTitle').textContent = nomeDaSala;
-    atualizarStatus(`Conectado em ${nomeDaSala}`);
-    document.getElementById('voiceUsers').style.display = 'block';
-
-    // ATUALIZAR LISTAS
-    renderizarSalas();
-    renderizarUsuarios();
-    
-    // MUDAR PARA ABA DO CHAT
-    setTimeout(() => {
-       /* console.log('🎯 Finalmente mudando para aba chat');*/
-        mudarAba('chat');
-    }, 100);
-};
-// === MUDAR ABA - CORRIGIDA ===
-window.mudarAba = function(aba) {
-    abaAtual = aba;
-    document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.chat-content').forEach(c => c.classList.remove('active'));
-
-    document.querySelector(`.chat-tab[onclick="mudarAba('${aba}')"]`).classList.add('active');
-    document.getElementById(`${aba}Content`).classList.add('active');
-
-    // ATUALIZAR TÍTULO CORRETAMENTE
-    let titulo = 'Chat Global';
-    if (aba === 'chat' && salaAtual) {
-        titulo = salasDisponiveis[salaAtual]?.nome || salaAtual;
-    } else if (aba === 'usuarios') {
-        titulo = salaAtual ? `Usuários - ${salasDisponiveis[salaAtual]?.nome || salaAtual}` : 'Usuários na Sala';
-    }
-    
-    document.getElementById('headerTitle').textContent = titulo;
-};
-
-// ===== FUNÇÃO PARA CRIAR SALAS AUTOMÁTICAS =====
-function criarSalasAutomaticas() {
-    if (!AppState.socket) {
-        //console.log('Aguardando conexão socket...');
-        setTimeout(criarSalasAutomaticas, 1000);
-        return;
-    }
-
-   // console.log('🔄 Criando salas automáticas...');
-    
-    // Salas para Jogos
-    dados.jogos.forEach(jogo => {
-        criarSalaSeNaoExistir(`🎮 ${jogo.nome}`, 'jogo');
-        
-        // Salas para Estádios
-        jogo.estadios.forEach(estadio => {
-            criarSalaSeNaoExistir(`🏟️ ${estadio.nome}`, 'estadio');
-            
-            // Salas para Times
-            estadio.times.forEach(time => {
-                criarSalaSeNaoExistir(`⚽ ${time.nome}`, 'time');
-                
-                // Salas para Lives
-                (time.lives || []).forEach(live => {
-                    criarSalaSeNaoExistir(`📺 ${live.titulo}`, 'live');
-                    
-                    // Salas para Divs Horizontais
-                    (live.divsHorizontais || []).forEach(div => {
-                        criarSalaSeNaoExistir(`📊 ${div.titulo || `Div ${div.id}`}`, 'div');
-                        
-                        // Salas para Cards
-                        (div.cards || []).forEach(card => {
-                            criarSalaSeNaoExistir(`🎴 ${card.titulo || `Card ${card.id}`}`, 'card');
-                        });
-                        
-                        // Salas para Iframes
-                        (div.iframes || []).forEach(iframe => {
-                            if (iframe.url) {
-                                criarSalaSeNaoExistir(`🌐 ${iframe.nome || 'Iframe'}`, 'iframe');
-                            }
-                        });
-                    });
-                });
-            });
-        });
-    });
-    
-    console.log('✅ Salas automáticas criadas!');
-}
-
-// ===== FUNÇÃO PARA ENTRAR EM QUALQUER SALA AUTOMATICAMENTE =====
-
-// === ENTRAR SALA POR TIPO - CORRIGIDA ===
-function entrarSalaPorTipo(tipo, id, nome) {
-   // console.log('🎯 entrarSalaPorTipo:', { tipo, id, nome });
-
-    if (!usuarioLogado?.nome) {
-        usuarioLogado = { 
-            nome: `Visitante${Math.floor(Math.random() * 1000)}`, 
-            merito: 'visitante' 
-        };
-    }
-
-    const nomeSala = getNomeSalaPorTipo(tipo, nome);
-    abrirChatGlobal();
-
-    // Função para atualizar o ID real da sala pelo nome
-    function atualizarRoomId() {
-        return Object.keys(salasDisponiveis).find(
-            idSala => salasDisponiveis[idSala]?.nome === nomeSala
-        );
-    }
-
-    function tentarEntrarSala() {
-        const roomId = atualizarRoomId();
-     /*   console.log('🔄 Tentando entrar na sala...', {
-            socketConectado: !!socket,
-            salaAtualDefinida: typeof salaAtual !== 'undefined',
-            salasDisponiveis: Object.keys(salasDisponiveis || {}).length,
-            roomId,
-        });*/
-
-        if (socket && typeof salaAtual !== 'undefined') {
-            if (roomId) {
-              //  console.log('✅ Sala encontrada:', roomId);
-                entrarSala(roomId);
-            } else {
-                console.warn('⚠️ Sala não encontrada, criando nova:', nomeSala);
-                criarSalaSeNaoExistir(nomeSala, tipo);
-                setTimeout(() => {
-                    const novaSala = atualizarRoomId();
-                    if (novaSala) {
-                     //   console.log('✅ Nova sala localizada após criação:', novaSala);
-                        entrarSala(novaSala);
-                    } else {
-                        console.error('❌ Não foi possível localizar a sala criada:', nomeSala);
-                    }
-                }, 1000);
-            }
+    initializeSocket() {
+        // Verificar se o socket global existe
+        if (typeof socket !== 'undefined' && socket) {
+            this.socket = socket;
+            this.setupSocketListeners();
+            this.joinRoom();
         } else {
-            console.log('⏳ Aguardando inicialização...');
-            setTimeout(tentarEntrarSala, 500);
+            // Tentar inicializar o socket
+            this.initializeSocketConnection();
         }
     }
 
-    // Inicia o processo
-    setTimeout(tentarEntrarSala, 1000);
-
-    // Garante que a aba de chat seja ativada
-    setTimeout(() => {
-        if (typeof mudarAba === 'function') {
-         //   console.log('💬 Mudando para aba chat');
-            mudarAba('chat');
+    initializeSocketConnection() {
+        // Inicializar conexão Socket.IO se não existir
+        try {
+            this.socket = io();
+            this.setupSocketListeners();
+            this.joinRoom();
+            
+            // Salvar no escopo global para reutilização
+            window.socket = this.socket;
+            
+        } catch (error) {
+            console.error('Erro ao conectar com Socket.IO:', error);
+            this.showError('Erro de conexão. Recarregue a página e tente novamente.');
         }
-    }, 3000);
-}
-
-
-// ===== FUNÇÃO PARA OBTER NOME DA SALA POR TIPO =====
-function getNomeSalaPorTipo(tipo, nome) {
-    const prefixos = {
-        'jogo': '🎮',
-        'estadio': '🏟️', 
-        'time': '⚽',
-        'live': '📺',
-        'div': '📊',
-        'card': '🎴',
-        'iframe': '🌐'
-    };
-    
-    return `${prefixos[tipo] || '💬'} ${nome}`;
-}
-// ===== FUNÇÕES ESPECÍFICAS PARA CADA TIPO =====
-function entrarSalaJogo(jogoId) {
-    const jogo = dados.jogos.find(j => j.id === jogoId);
-    if (jogo) entrarSalaPorTipo('jogo', jogoId, jogo.nome);
-}
-function entrarSalaEstadio(jogoId, estadioId) {
-    const estadio = encontrarEstadio(jogoId, estadioId);
-    if (estadio) entrarSalaPorTipo('estadio', estadioId, estadio.nome);
-}
-// Adicionar ao container de botões
-function entrarSalaTime(jogoId, estadioId, timeId) {
-    const time = encontrarTime(jogoId, estadioId, timeId);
-    if (time) entrarSalaPorTipo('time', timeId, time.nome);
-}
-function entrarSalaLive(jogoId, estadioId, timeId, liveId) {
-    const live = encontrarLive(jogoId, estadioId, timeId, liveId);
-    if (live) entrarSalaPorTipo('live', liveId, live.titulo);
-}
-function entrarSalaDiv(jogoId, estadioId, timeId, liveId, divId) {
-    const div = encontrarDivHorizontal(jogoId, estadioId, timeId, liveId, divId);
-    if (div) entrarSalaPorTipo('div', divId, div.titulo || `Div ${divId}`);
-}
-
-// Adicionar ao container de botões
-function entrarSalaCard(cardId) {
-    const card = encontrarCardPorId && encontrarCardPorId(cardId);
-    if (card) entrarSalaPorTipo('card', cardId, card.titulo || `Card ${cardId}`);
-}
-// ===== FUNÇÃO PARA SALA DE IFRAME =====
-
-function entrarSalaIframe(jogoId, estadioId, timeId, liveId, divId, iframeId) {
-   /* console.log("###########################");
-    console.log("liveId", liveId);
-    console.log("divId", divId);
-    console.log("iframeId", iframeId);
-    console.log("###########################");*/
-
-    const iframe = encontrarIframe(jogoId, estadioId, timeId, liveId, divId, iframeId);
-
-    if (iframe) {
-        const nome = iframe.titulo || iframe.nome || `Iframe ${iframeId}`;
-      //  console.log("🎯 Entrando na sala do iframe:", nome);
-        entrarSalaPorTipo('iframe', iframeId, nome);
-    } else {
-        console.warn("⚠️ Nenhum iframe encontrado — criando sala genérica:", iframeId);
-        criarSalaSeNaoExistir(`🌐 Iframe ${iframeId}`, 'iframe');
-        setTimeout(() => entrarSalaPorTipo('iframe', iframeId, `Iframe ${iframeId}`), 1000);
-    }
-}
-
-// ===== FUNÇÃO AUXILIAR PARA ENCONTRAR IFRAME =====
-
-// ===== FUNÇÃO AUXILIAR PARA ENCONTRAR IFRAME =====
-function encontrarIframe(jogoId, estadioId, timeId, liveId, divId, iframeId) {
-   // console.log("_____encontrarIframe");
-
-    const div = encontrarDivHorizontal(jogoId, estadioId, timeId, liveId, divId);
-
-    if (!div) {
-        console.warn("⚠️ Nenhuma div encontrada para IDs:", { jogoId, estadioId, timeId, liveId, divId });
-        return null;
     }
 
-    // compatibilidade com 'cards' ou 'iframes' ou 'iframers'
-    const lista = div.cards || div.iframes || div.iframers || [];
-
-   // console.log("_____div encontrada:", div);
-    const iframe = lista.find(i => i.id === iframeId);
-
-    if (!iframe) {
-        console.warn("⚠️ Nenhum iframe encontrado dentro da div:", { divId, iframeId, lista });
-    } else {
-      //  console.log("✅ Iframe encontrado:", iframe);
-    }
-
-    return iframe || null;
-}
-
-// ===== ATUALIZAR A FUNÇÃO ORIGINAL =====
-function criarOuEntrarSalaJogo(jogoId) {
-    entrarSalaJogo(jogoId);
-}
-// ===== INICIALIZAR SALAS AUTOMATICAS =====
-function inicializarSalasAutomaticas() {
-    // Esperar socket conectar e então criar salas
-    if (AppState.socket && AppState.socket.connected) {
-        criarSalasAutomaticas();
-    } else {
-        setTimeout(inicializarSalasAutomaticas, 1000);
-    }
-}
-// ===== ADICIONAR ESTE HANDLER NO initializeApp ou setupGlobalChatHandlers =====
-function setupSalasAutomaticasHandlers() {
-    if (!AppState.socket) return;
-
-    // Quando o servidor confirma que uma sala foi criada
-    AppState.socket.on('room-created', (data) => {
-     //   console.log('✅ Sala criada pelo servidor:', data);
-        if (data.room && data.info) {
-            salasDisponiveis[data.room] = data.info;
-            renderizarSalas(); // Atualizar a lista visual
-        }
-    });
-
-    // Quando recebe a lista de salas do servidor
-    AppState.socket.on('rooms-list', (salas) => {
-      //  console.log('📋 Lista de salas recebida:', salas);
-        salasDisponiveis = salas;
-        renderizarSalas(); // Atualizar a lista visual
-    });
-}
-
-// ===== ATUALIZAR O initializeApp =====
-async function initializeApp() {
-    const urlInfo = getIdFromUrl();
-    
-  await  initializeSocketConnection();
-   await initializeAutoChats(urlInfo);
-   await setupGlobalChatHandlers();
-   await setupGameRoomHandlers();
-  await  setupSalasAutomaticasHandlers(); // ⭐⭐ ADICIONAR ESTA LINHA ⭐⭐
-    
-    // Inicializar salas automáticas
-  await  inicializarSalasAutomaticas()
-    
-    if (urlInfo) {
-      await  handleUrlRouting(urlInfo);
-    }
-    
-  await  joinGlobalChat()
-}
-// ===== MELHORAR A FUNÇÃO criarSalaSeNaoExistir =====
-
-// === CRIAR SALA SE NÃO EXISTIR - OTIMIZADA ===
-function criarSalaSeNaoExistir(nomeSala, tipo) {
-    const salaExiste = Object.values(salasDisponiveis).some(
-        sala => sala?.nome === nomeSala
-    );
-
-    if (!salaExiste && socket) {
-        const roomId = `${tipo}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      //  console.log(`🔄 Criando sala: ${nomeSala} (${roomId})`);
-
-        socket.emit('create-room', {
-            room: roomId,
-            nome: nomeSala,
-            tipo,
-            criador: usuarioLogado?.nome || 'Sistema'
-        });
-
-        salasDisponiveis[roomId] = { nome: nomeSala, usuarios: 0, tipo };
-        renderizarSalas();
-
-       // console.log(`➕ Sala criada localmente: ${nomeSala}`);
-    } else if (salaExiste) {
-        console.log(`⏩ Sala já existe: ${nomeSala}`);
-    } else {
-        console.warn('⚠️ Socket não disponível ao tentar criar sala');
-    }
-}
-
-// ===== ADICIONAR DEBUG NA RENDERIZAÇÃO =====
-// === RENDER SALAS - MAIS SEGURA ===
-function renderizarSalas() {
-    const container = document.getElementById('chatRoomsSection');
-    
-    if (!container) {
-        console.error('❌ Container de salas não encontrado');
-        return;
-    }
-    
-   // console.log('🔄 Renderizando salas:', Object.keys(salasDisponiveis).length);
-
-    if (Object.keys(salasDisponiveis).length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#999; font-size:13px;">Nenhuma sala disponível</div>';
-        return;
-    }
-
-    container.innerHTML = Object.entries(salasDisponiveis).map(([roomId, info]) => {
-        // ⭐⭐ CORREÇÃO: Verificar se info existe
-        if (!info) {
-            console.warn('⚠️ Info da sala é undefined para roomId:', roomId);
-            return '';
-        }
-        
-        const ativo = salaAtual === roomId ? 'active' : '';
-        const usuarios = info.usuarios || 0;
-        const nome = info.nome || roomId; // ⭐⭐ Fallback para roomId se nome não existir
-        
-       // console.log(`📝 Renderizando sala: ${nome} (${roomId}) - ${usuarios} users`);
-        
-        return `
-            <div class="room-item ${ativo}" onclick="entrarSala('${roomId}')">
-                <div class="room-info">
-                    <div class="room-name">${nome}</div>
-                    <div class="room-users">${usuarios} online</div>
-                </div>
-                ${ativo ? '<div style="font-size:10px; color:#28a745;">✓ Conectado</div>' : ''}
-            </div>
-        `;
-    }).join('');
-}
-   // ===== CHAT GLOBAL + VOZ + CONTADOR + SUAS MENSAGENS APARECEM =====
-  
-(function() {
-    'use strict';
-
-    if (window.globalChatInjetado) return;
-    window.globalChatInjetado = true;
-
-
-
-    // === CSS (seu original, sem mudanças) ===
-    const style = document.createElement('style');
-    style.textContent = `
-        #chatFloatButton {
-            position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
-            border-radius: 50%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: all 0.3s ease;
-            font-family: 'Segoe UI', sans-serif; user-select: none;
-        }
-        #chatFloatButton:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
-
-        #chatGlobalWindow { position: fixed; bottom: 90px; right: 20px; width: 380px; height: 520px;
-            background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; flex-direction: column;
-            z-index: 999; font-family: 'Segoe UI', sans-serif; overflow: hidden; border: 1px solid #eee;
-        }
-        #chatGlobalWindow.show { display: flex; }
-
-        .chat-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 16px;
-            font-weight: 600; font-size: 16px; display: flex; justify-content: space-between; align-items: center;
-        }
-        .chat-close-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-
-        .chat-tabs { display: flex; background: #f0f0f0; border-bottom: 1px solid #ddd; }
-        .chat-tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; cursor: pointer; transition: background 0.2s; }
-        .chat-tab.active { background: white; font-weight: 600; border-bottom: 2px solid #667eea; }
-
-        .chat-content { flex: 1; overflow-y: auto; display: none; }
-        .chat-content.active { display: block; }
-
-        #chatRoomsSection, #chatUsersSection, #chatMessages { padding: 16px; background: #f8f9fa; }
-        .room-item, .user-item { padding: 10px; background: white; border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: background 0.2s; }
-        .room-item:hover, .room-item.active, .user-item:hover { background: #667eea; color: white; }
-        .room-info, .user-info { display: flex; justify-content: space-between; font-size: 14px; }
-        .room-name, .user-name { font-weight: 600; }
-        .room-users, .user-status { font-size: 12px; opacity: 0.8; }
-
-        .message { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-wrap: break-word; margin: 4px 0; }
-        .message.user { align-self: flex-end; background: #667eea; color: white; }
-        .message.other { align-self: flex-start; background: white; color: #333; border: 1px solid #e0e0e0; }
-
-        .chat-input-area { padding: 12px; background: white; border-top: 1px solid #eee; display: flex; gap: 8px; }
-        .chat-input-area input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 14px; }
-        .chat-input-area input:focus { border-color: #667eea; }
-        .chat-input-area button { padding: 10px 16px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; }
-        .chat-input-area button:disabled { background: #ccc; cursor: not-allowed; }
-
-        #chatStatus { padding: 8px; text-align: center; font-size: 12px; color: #666; background: #f0f0f0; }
-
-        #voiceUsers { padding: 8px; font-size: 12px; color: #555; border-top: 1px solid #eee; display: none; }
-        #voiceUsers strong { color: #333; }
-    `;
-    document.head.appendChild(style);
-
-    // === HTML ===
-    const chatHTML = `
-        <div id="chatFloatButton">Chat</div>
-        <div id="chatGlobalWindow">
-            <div class="chat-header">
-                <span id="headerTitle">Chat Global</span>
-                <button class="chat-close-btn" onclick="fecharChatGlobal()">×</button>
-            </div>
-
-            <!-- ABAS -->
-            <div class="chat-tabs">
-                <div class="chat-tab active" onclick="mudarAba('salas')">Salas</div>
-                <div class="chat-tab" onclick="mudarAba('usuarios')">Usuários</div>
-                <div class="chat-tab" onclick="mudarAba('chat')">Chat</div>
-            </div>
-
-            <!-- CONTEÚDO -->
-            <div id="salasContent" class="chat-content active">
-                <div style="padding:16px; background:#f0f0f0; border-bottom:1px solid #ddd;">
-                    <input type="text" id="novaSalaInput" placeholder="Nome da nova sala..." style="width:70%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
-                    <button onclick="criarSala()" style="width:28%; padding:10px; background:#667eea; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; margin-left:4px;">Criar</button>
-                </div>
-                <div id="chatRoomsSection">
-                    <div style="text-align:center; color:#999; font-size:13px;">Carregando salas...</div>
-                </div>
-            </div>
-
-            <div id="usuariosContent" class="chat-content">
-                <div id="chatUsersSection">
-                    <div style="text-align:center; color:#999; font-size:13px;">Entre em uma sala</div>
-                </div>
-            </div>
-
-            <div id="chatContent" class="chat-content">
-                <div class="chat-messages" id="chatMessages"></div>
-            </div>
-
-            <div id="chatStatus">Conectando...</div>
-
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Digite uma mensagem..." disabled>
-                <button id="sendBtn" onclick="enviarMensagem()" disabled>Enviar</button>
-                <button id="voiceBtn" onclick="toggleVoice()" disabled>Voice Off</button>
-            </div>
-
-            <div id="voiceUsers">
-                <strong>Em voz:</strong> <span id="voiceList">Ninguém</span>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', chatHTML);
-
-    // === FUNÇÕES ===
-    window.abrirChatGlobal = function() {
-        document.getElementById('chatGlobalWindow').classList.add('show');
-        document.getElementById('chatFloatButton').style.display = 'none';
-        conectarSocket();
-    };
-
-    window.fecharChatGlobal = function() {
-        document.getElementById('chatGlobalWindow').classList.remove('show');
-        document.getElementById('chatFloatButton').style.display = 'flex';
-        if (salaAtual) {
-            socket.emit('leave-room', { room: salaAtual });
-            socket.emit('voice-leave', { room: salaAtual });
-            salaAtual = null;
-            usuariosNaSala.clear();
-            renderizarUsuarios();
-        }
-        desativarVoz();
-    };
-
-    window.mudarAba = function(aba) {
-        abaAtual = aba;
-        document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.chat-content').forEach(c => c.classList.remove('active'));
-
-        document.querySelector(`.chat-tab[onclick="mudarAba('${aba}')"]`).classList.add('active');
-        document.getElementById(`${aba}Content`).classList.add('active');
-
-        document.getElementById('headerTitle').textContent = {
-            salas: 'Chat Global',
-            usuarios: 'Usuários na Sala',
-            chat: salasDisponiveis[salaAtual]?.nome || 'Chat'
-        }[aba];
-    };
-
-    // === CONEXÃO ===
-    function conectarSocket() {
-        if (socket) return; // Evita reconexão
-        socket = io(SIGNALING_SERVER, { transports: ['websocket'] });
-
-        socket.on('connect', () => {
-            atualizarStatus('Conectado! Carregando salas...');
-            socket.emit('request-rooms');
-          //  console.log('Socket conectado com ID:', socket.id);
-        });
-
-        socket.on('rooms-list', (salas) => {
-            salasDisponiveis = salas;
-            renderizarSalas();
-            //console.log('Salas recebidas:', salas);
-        });
-
-        socket.on('room-user-count', ({ room, count }) => {
-            if (salasDisponiveis[room]) {
-                salasDisponiveis[room].usuarios = count;
-                renderizarSalas();
-                if (salaAtual === room) {
-                    atualizarStatus(`${count} online • ${Object.keys(peers).length} em voz`);
-                }
-            }
-        });
-
-        socket.on('chat-message', (data) => {
-            if (data.room !== salaAtual) return;
-           // console.log('Mensagem recebida:', data); // Log para depurar
-            const nome = data.usuario || 'Anônimo';
-            const tipo = (data.socketId === socket.id) ? 'user' : 'other';
-            adicionarMensagem(`${nome}: ${data.mensagem}`, tipo);
-        });
-
-        socket.on('user-joined-room', (data) => {
-            if (data.room === salaAtual && data.socketId !== socket.id) {
-                usuariosNaSala.add(data.socketId);
-                renderizarUsuarios();
-            }
-        });
-
-        socket.on('user-left-room', (data) => {
-            if (data.room === salaAtual) {
-                usuariosNaSala.delete(data.socketId);
-                renderizarUsuarios();
-            }
-        });
-
-        socket.on('room-created', ({ room, info }) => {
-            salasDisponiveis[room] = info;
-            renderizarSalas();
-            //console.log('Nova sala criada:', room, info);
-        });
-
-        socket.on('disconnect', () => {
-            atualizarStatus('Desconectado');
-            desativarVoz();
-        });
-    }
-
-    // === RENDER SALAS ===
-    function renderizarSalas() {
-        const container = document.getElementById('chatRoomsSection');
-        container.innerHTML = Object.entries(salasDisponiveis).map(([room, info]) => {
-            const ativo = salaAtual === room ? 'active' : '';
-            return `
-                <div class="room-item ${ativo}" onclick="entrarSala('${room}')">
-                    <div class="room-info">
-                        <div class="room-name">${info.nome}</div>
-                        <div class="room-users">${info.usuarios} online</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // === RENDER USUÁRIOS ===
-    function renderizarUsuarios() {
-        const container = document.getElementById('chatUsersSection');
-        if (!salaAtual) {
-            container.innerHTML = '<div style="text-align:center; color:#999; font-size:13px;">Entre em uma sala</div>';
+    setupSocketListeners() {
+        if (!this.socket) {
+            console.error('Socket não disponível');
             return;
         }
 
-        container.innerHTML = Array.from(usuariosNaSala).map(id => `
-            <div class="user-item">
-                <div class="user-info">
-                    <div class="user-name">Usuário ${id.slice(0,6)}</div>
-                    <div class="user-status">online</div>
+        // Listeners do Socket.IO para chat de jogo
+        this.socket.on('chat-jogo-message', (data) => {
+            this.displayMessage(data);
+        });
+
+        this.socket.on('chat-jogo-users-update', (data) => {
+            this.updateUsersList(data.users);
+        });
+
+        this.socket.on('chat-jogo-history', (data) => {
+            this.loadChatHistory(data.messages);
+        });
+
+        // WebRTC Signaling
+        this.socket.on('webrtc-offer', (data) => this.handleOffer(data));
+        this.socket.on('webrtc-answer', (data) => this.handleAnswer(data));
+        this.socket.on('webrtc-ice-candidate', (data) => this.handleICECandidate(data));
+        this.socket.on('user-joined-voice', (data) => this.handleUserJoinedVoice(data));
+        this.socket.on('user-left-voice', (data) => this.handleUserLeftVoice(data));
+
+        // Listeners de conexão
+        this.socket.on('connect', () => {
+            console.log('Conectado ao servidor Socket.IO');
+            this.updateConnectionStatus(true);
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Desconectado do servidor Socket.IO');
+            this.updateConnectionStatus(false);
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Erro de conexão Socket.IO:', error);
+            this.updateConnectionStatus(false);
+        });
+    }
+
+    updateConnectionStatus(connected) {
+        const statusElement = document.getElementById('connection-status');
+        if (!statusElement) return;
+
+        if (connected) {
+            statusElement.innerHTML = '🟢 Conectado';
+            statusElement.style.color = '#28a745';
+        } else {
+            statusElement.innerHTML = '🔴 Desconectado';
+            statusElement.style.color = '#dc3545';
+        }
+    }
+
+    showError(message) {
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer) {
+            messagesContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #dc3545;">
+                    <div>❌ ${message}</div>
+                    <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Recarregar Página
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    createModal() {
+        // Remove modal existente se houver
+        const existingModal = document.getElementById('modal-chat-jogo');
+        if (existingModal) existingModal.remove();
+
+        const modalHTML = `
+        <div id="modal-chat-jogo" class="modal-chat-jogo" style="
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; max-width: 600px; height: 70vh;
+            background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 10000; display: flex; flex-direction: column;
+            font-family: Arial, sans-serif;
+        ">
+            <!-- Header -->
+            <div style="padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #007bff; color: white; border-radius: 12px 12px 0 0;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.2em;">💬 Chat - ${this.jogoNome}</h3>
+                    <div id="connection-status" style="font-size: 0.7em; opacity: 0.9;">🟢 Conectando...</div>
+                </div>
+                <button id="close-chat-modal" style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer;">×</button>
+            </div>
+
+            <!-- Content -->
+            <div style="flex: 1; display: flex; height: calc(100% - 120px);">
+                <!-- Lista de Usuários -->
+                <div style="width: 200px; border-right: 1px solid #eee; padding: 10px; background: #f8f9fa;">
+                    <h4 style="margin: 0 0 10px 0; color: #555;">👥 Online</h4>
+                    <div id="chat-users-list" style="font-size: 0.9em;">
+                        <div style="padding: 5px; color: #28a745;">● Você</div>
+                    </div>
+                </div>
+
+                <!-- Área do Chat -->
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <!-- Mensagens -->
+                    <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; background: white;">
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            Conectando ao chat...
+                        </div>
+                    </div>
+                    
+                    <!-- Controles de Áudio -->
+                    <div style="padding: 10px; border-top: 1px solid #eee; background: #f8f9fa; display: flex; gap: 10px; align-items: center;">
+                        <button id="toggle-audio" style="padding: 8px 12px; border: 1px solid #dc3545; background: #dc3545; color: white; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
+                            🎤 Ativar Voz
+                        </button>
+                        <div id="audio-status" style="font-size: 0.8em; color: #666;">
+                            Áudio: Desativado
+                        </div>
+                    </div>
+
+                    <!-- Input de Mensagem -->
+                    <div style="padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                        <input type="text" id="chat-message-input" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em;">
+                        <button id="send-message" style="padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
+                            Enviar
+                        </button>
+                    </div>
                 </div>
             </div>
-        `).join('');
+        </div>
+        <div id="modal-chat-backdrop" style="
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 9999;
+        "></div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        this.setupEventListeners();
     }
 
-    // === ENTRAR SALA ===
-    /*
-    window.entrarSala = async function(room) {
-        if (salaAtual === room) return;
+    setupEventListeners() {
+        // Fechar modal
+        document.getElementById('close-chat-modal').onclick = () => this.close();
+        document.getElementById('modal-chat-backdrop').onclick = () => this.close();
 
-        if (salaAtual) {
-            socket.emit('leave-room', { room: salaAtual });
-            socket.emit('voice-leave', { room: salaAtual });
-            desativarVoz();
+        // Enviar mensagem
+        document.getElementById('send-message').onclick = () => this.sendMessage();
+        document.getElementById('chat-message-input').onkeypress = (e) => {
+            if (e.key === 'Enter') this.sendMessage();
+        };
+
+        // Controle de áudio
+        document.getElementById('toggle-audio').onclick = () => this.toggleAudio();
+    }
+
+    joinRoom() {
+        if (!this.socket || !this.socket.connected) {
+            console.error('Socket não conectado');
+            return;
         }
 
-        salaAtual = room;
-        usuariosNaSala.clear();
-        renderizarUsuarios();
-        renderizarSalas();
-
-        const info = salasDisponiveis[room];
-        socket.emit('join-room', {
-            room: room,
-            user: usuarioLogado?.nome || 'Visitante',
-            merito: usuarioLogado?.merito || 0
+        // Entrar na sala do jogo
+        this.socket.emit('join-jogo-chat', {
+            jogoId: this.jogoId,
+            salaId: this.salaId,
+            usuario: this.getUsuarioAtual()
         });
 
-        document.getElementById('chatInput').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
-        document.getElementById('voiceBtn').disabled = false;
-        document.getElementById('chatInput').placeholder = `Mensagem em ${info.nome}...`;
-        document.getElementById('chatMessages').innerHTML = '';
-        atualizarStatus(`Entrou em ${info.nome} • ${info.usuarios} online`);
-        document.getElementById('voiceUsers').style.display = 'block';
-    };
-*/
-// === ENTRAR SALA - CORRIGIDA E ROBUSTA ===
-window.entrarSala = async function(room) {
-    //console.log('🚪 entrarSala chamada com room:', room);
-/*    console.log('📊 Socket status:', {
-        socket: !!socket,
-        socketConectado: socket?.connected,
-        salasDisponiveis: Object.keys(salasDisponiveis || {}).length
-    });*/
-
-    if (!room) {
-        console.error('❌ Nome da sala é undefined ou vazio');
-        mostrarNotificacao('Erro: Sala não especificada', 'erro');
-        return;
+        // Solicitar histórico
+        this.socket.emit('request-jogo-chat-history', { salaId: this.salaId });
     }
 
-    if (!socket || !socket.connected) {
-        console.error('❌ Socket não conectado, tentando reconectar...');
-        conectarSocket();
-        setTimeout(() => entrarSala(room), 1000);
-        return;
-    }
-
-    if (!salasDisponiveis) salasDisponiveis = {};
-
-    // Criar sala se não existir
-    if (!salasDisponiveis[room]) {
-        //console.log('➕ Criando sala automaticamente:', room);
-        salasDisponiveis[room] = { nome: room, usuarios: 1 };
-
-        socket.emit('create-room', {
-            room,
-            nome: room,
-            criador: usuarioLogado?.nome || 'Anônimo'
-        });
-    }
-
-    const infoSala = salasDisponiveis[room];
-    const nomeDaSala = infoSala?.nome || room;
-    //console.log('✅ Sala configurada:', { room, nomeDaSala });
-
-    // Agora permite reentrar na mesma sala
-    if (salaAtual === room) {
-        //console.log('♻️ Reentrando na mesma sala:', room);
-        atualizarStatus(`Conectado novamente em ${nomeDaSala}`);
-    } else {
-        if (salaAtual) {
-            //console.log('🚪 Saindo da sala anterior:', salaAtual);
-            socket.emit('leave-room', { room: salaAtual });
-            socket.emit('voice-leave', { room: salaAtual });
-            desativarVoz();
+    getUsuarioAtual() {
+        // Tenta obter o usuário de diferentes fontes
+        if (typeof usuarioAtual !== 'undefined' && usuarioAtual) {
+            return usuarioAtual.nome || 'Anônimo';
         }
-        salaAtual = room;
+        
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            return currentUser.nome || 'Anônimo';
+        }
+        
+        return 'Anônimo';
     }
 
-    // Entrar na nova sala
-    socket.emit('join-room', {
-        room,
-        user: usuarioLogado?.nome || 'Visitante',
-        merito: usuarioLogado?.merito || 0
-    });
-
-    // Atualizar interface
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.disabled = false;
-        chatInput.placeholder = `Mensagem em ${nomeDaSala}...`;
-    }
-
-    const sendBtn = document.getElementById('sendBtn');
-    const voiceBtn = document.getElementById('voiceBtn');
-    if (sendBtn) sendBtn.disabled = false;
-    if (voiceBtn) voiceBtn.disabled = false;
-
-    const chatMessages = document.getElementById('chatMessages');
-    if (chatMessages) chatMessages.innerHTML = '';
-
-    const headerTitle = document.getElementById('headerTitle');
-    if (headerTitle) headerTitle.textContent = nomeDaSala;
-
-    atualizarStatus(`Conectado em ${nomeDaSala}`);
-
-    const voiceUsers = document.getElementById('voiceUsers');
-    if (voiceUsers) voiceUsers.style.display = 'block';
-
-    renderizarSalas();
-    renderizarUsuarios();
-
-    setTimeout(() => {
-        //console.log('🎯 Mudando para aba chat');
-        mudarAba('chat');
-    }, 100);
-};
-
-    // === CRIAR SALA ===
-    window.criarSala = function() {
-        if (!socket) {
-            conectarSocket(); // Conecta se não estiver
+    sendMessage() {
+        if (!this.socket || !this.socket.connected) {
+            this.showError('Não conectado ao servidor. Tente novamente.');
+            return;
         }
 
-        const input = document.getElementById('novaSalaInput');
-        const nome = input.value.trim();
-        if (!nome) return alert('Digite um nome!');
+        const input = document.getElementById('chat-message-input');
+        const message = input.value.trim();
+        
+        if (!message) return;
 
-        const roomId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-        const roomName = `${nome} (criada por ${usuarioLogado?.nome || 'você'})`;
-
-        socket.emit('create-room', {
-            room: roomId,
-            nome: roomName,
-            criador: usuarioLogado?.nome || 'Anônimo'
+        this.socket.emit('chat-jogo-message', {
+            salaId: this.salaId,
+            mensagem: message,
+            usuario: this.getUsuarioAtual(),
+            jogoId: this.jogoId
         });
 
         input.value = '';
-        //console.log('Criando sala:', roomId, roomName);
-    };
+    }
 
-    // === ENVIAR MENSAGEM ===
-    window.enviarMensagem = function() {
-        const input = document.getElementById('chatInput');
-        const msg = input.value.trim();
-        if (!msg || !salaAtual) return;
+    displayMessage(data) {
+        const messagesContainer = document.getElementById('chat-messages');
+        if (!messagesContainer) return;
 
-        socket.emit('chat-message', {
-            room: salaAtual,
-            mensagem: msg,
-            usuario: usuarioLogado?.nome || 'Visitante',
-            merito: usuarioLogado?.merito || 0
+        // Limpar mensagem de "conectando" se for a primeira mensagem
+        if (messagesContainer.children.length === 1 && 
+            messagesContainer.children[0].textContent.includes('Conectando')) {
+            messagesContainer.innerHTML = '';
+        }
+
+        const messageEl = document.createElement('div');
+        messageEl.style.padding = '8px 0';
+        messageEl.style.borderBottom = '1px solid #f0f0f0';
+        
+        const time = new Date(data.data).toLocaleTimeString();
+        messageEl.innerHTML = `
+            <strong style="color: #007bff;">${data.usuario}</strong>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">${time}</span>
+            <div style="margin-top: 2px; color: #333;">${this.escapeHtml(data.mensagem)}</div>
+        `;
+
+        messagesContainer.appendChild(messageEl);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    loadChatHistory(messages) {
+        const messagesContainer = document.getElementById('chat-messages');
+        if (!messagesContainer) return;
+
+        messagesContainer.innerHTML = '';
+        
+        if (messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    Nenhuma mensagem ainda. Seja o primeiro a conversar!
+                </div>
+            `;
+            return;
+        }
+        
+        messages.forEach(message => this.displayMessage(message));
+    }
+
+    updateUsersList(users) {
+        const usersList = document.getElementById('chat-users-list');
+        if (!usersList) return;
+
+        const currentUser = this.getUsuarioAtual();
+        usersList.innerHTML = `<div style="padding: 5px; color: #28a745;">● ${currentUser}</div>`;
+        
+        users.forEach(user => {
+            if (user !== currentUser) {
+                const userEl = document.createElement('div');
+                userEl.style.padding = '5px';
+                userEl.style.display = 'flex';
+                userEl.style.alignItems = 'center';
+                userEl.style.gap = '5px';
+                userEl.innerHTML = `
+                    <span style="color: #28a745;">●</span>
+                    <span>${user}</span>
+                    <span id="voice-indicator-${user}" style="margin-left: auto; font-size: 0.8em; color: #007bff; display: none;">🎤</span>
+                `;
+                usersList.appendChild(userEl);
+            }
         });
+    }
 
-        //console.log('Mensagem enviada:', msg); // Log para depurar
-        input.value = '';
-    };
+    async toggleAudio() {
+        if (!this.socket || !this.socket.connected) {
+            this.showError('Não conectado ao servidor. Ative a conexão primeiro.');
+            return;
+        }
 
-    // === ADICIONAR MENSAGEM ===
-    function adicionarMensagem(texto, tipo) {
-        const chat = document.getElementById('chatMessages');
+        const button = document.getElementById('toggle-audio');
+        const status = document.getElementById('audio-status');
+
+        if (!this.isAudioEnabled) {
+            try {
+                // Verificar permissões primeiro
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Navegador não suporta acesso ao microfone');
+                }
+
+                this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }, 
+                    video: false 
+                });
+                
+                this.isAudioEnabled = true;
+                button.innerHTML = '🎤 Desativar Voz';
+                button.style.background = '#28a745';
+                button.style.borderColor = '#28a745';
+                status.innerHTML = 'Áudio: Ativado';
+                status.style.color = '#28a745';
+
+                // Notificar outros usuários
+                this.socket.emit('join-voice-chat', {
+                    salaId: this.salaId,
+                    usuario: this.getUsuarioAtual()
+                });
+
+            } catch (error) {
+                console.error('Erro ao acessar microfone:', error);
+                this.showError('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+            }
+        } else {
+            // Desativar áudio
+            this.deactivateAudio();
+        }
+    }
+
+    deactivateAudio() {
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
+        }
+
+        // Desconectar de todos os peers
+        this.peers.forEach(peer => peer.close());
+        this.peers.clear();
+
+        this.isAudioEnabled = false;
+        
+        const button = document.getElementById('toggle-audio');
+        const status = document.getElementById('audio-status');
+        
+        if (button) {
+            button.innerHTML = '🎤 Ativar Voz';
+            button.style.background = '#dc3545';
+            button.style.borderColor = '#dc3545';
+        }
+        
+        if (status) {
+            status.innerHTML = 'Áudio: Desativado';
+            status.style.color = '#666';
+        }
+
+        // Notificar outros usuários
+        if (this.socket) {
+            this.socket.emit('leave-voice-chat', {
+                salaId: this.salaId,
+                usuario: this.getUsuarioAtual()
+            });
+        }
+    }
+
+    // ... (restante dos métodos WebRTC permanecem iguais)
+
+    close() {
+        // Sair da sala
+        if (this.socket) {
+            this.socket.emit('leave-jogo-chat', {
+                salaId: this.salaId,
+                usuario: this.getUsuarioAtual()
+            });
+        }
+
+        // Sair do chat de voz se estiver ativo
+        this.deactivateAudio();
+
+        // Remover listeners do socket
+        if (this.socket) {
+            this.socket.off('chat-jogo-message');
+            this.socket.off('chat-jogo-users-update');
+            this.socket.off('chat-jogo-history');
+            this.socket.off('webrtc-offer');
+            this.socket.off('webrtc-answer');
+            this.socket.off('webrtc-ice-candidate');
+            this.socket.off('user-joined-voice');
+            this.socket.off('user-left-voice');
+        }
+
+        // Remover modal
+        const modal = document.getElementById('modal-chat-jogo');
+        const backdrop = document.getElementById('modal-chat-backdrop');
+        if (modal) modal.remove();
+        if (backdrop) backdrop.remove();
+
+        // Limpar referência
+        window.modalChatAtual = null;
+    }
+
+    escapeHtml(text) {
         const div = document.createElement('div');
-        div.className = `message ${tipo}`;
-        div.textContent = texto;
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
-        //console.log('Mensagem adicionada na UI:', texto, tipo);
+        div.textContent = text;
+        return div.innerHTML;
     }
-
-    // === VOZ ===
-    // (inalterado, mas com logs)
-    window.toggleVoice = async function() {
-        if (voiceEnabled) desativarVoz();
-        else await ativarVoz();
-    };
-
-    async function ativarVoz() {
-        try {
-            meuStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            document.getElementById('voiceBtn').textContent = 'Voice On';
-            document.getElementById('voiceBtn').style.background = '#28a745';
-            voiceEnabled = true;
-
-            socket.emit('voice-join', { room: salaAtual, user: usuarioLogado?.nome || 'Visitante' });
-            for (const peerId of Object.keys(peers)) await criarConexaoP2P(peerId);
-            atualizarListaVoz();
-            //console.log('Voz ativada');
-        } catch (err) {
-            atualizarStatus('Microfone bloqueado');
-            console.error('Erro voz:', err);
-        }
-    }
-
-    function desativarVoz() {
-        if (meuStream) meuStream.getTracks().forEach(t => t.stop());
-        voiceEnabled = false;
-        document.getElementById('voiceBtn').textContent = 'Voice Off';
-        document.getElementById('voiceBtn').style.background = '#dc3545';
-        for (const peerId of Object.keys(peers)) peers[peerId].pc.close();
-        peers = {};
-        atualizarListaVoz();
-        //console.log('Voz desativada');
-    }
-
-    async function criarConexaoP2P(peerId, userName) {
-        if (peers[peerId]) return;
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-        peers[peerId] = { pc, user: userName || 'Anônimo' };
-
-        if (meuStream) meuStream.getTracks().forEach(t => pc.addTrack(t, meuStream));
-
-        pc.ontrack = (e) => {
-            const audio = new Audio(); audio.srcObject = e.streams[0]; audio.autoplay = true; audio.style.display = 'none';
-            document.body.appendChild(audio);
-            //console.log('Áudio de peer recebido:', peerId);
-        };
-
-        pc.onicecandidate = (e) => {
-            if (e.candidate) socket.emit('ice-candidate', { to: peerId, candidate: e.candidate, room: salaAtual });
-        };
-
-        if (voiceEnabled) {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit('offer', { to: peerId, sdp: offer, room: salaAtual });
-            //console.log('Oferta enviada para peer:', peerId);
-        }
-    }
-
-    function atualizarListaVoz() {
-        const list = Object.values(peers).map(p => p.user).join(', ') || 'Ninguém';
-        document.getElementById('voiceList').textContent = list;
-        document.getElementById('voiceUsers').style.display = list === 'Ninguém' ? 'none' : 'block';
-    }
-
-    function atualizarStatus(texto) {
-        document.getElementById('chatStatus').textContent = texto;
-    }
-
-    // === EVENTOS ===
-    document.getElementById('chatFloatButton').addEventListener('click', abrirChatGlobal);
-    document.getElementById('chatInput').addEventListener('keypress', e => { if (e.key === 'Enter') enviarMensagem(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('chatGlobalWindow').classList.contains('show')) fecharChatGlobal(); });
-
-    //console.log('Chat pronto com logs para depuração!');
-})();
-
-/////////////////////////
-/////////////////////////
-////////////apostas/////////////
-/////////////////////////
-/////////////////////////
-(function() {
-    'use strict';
-
-    if (window.apostasIntegracaoInjetado) return;
-    window.apostasIntegracaoInjetado = true;
-
-
-
-    // === FUNÇÃO AUXILIAR: CHAMAR EXISTENTES SEM ALTERAR ===
-    function chamarExistentes() {
-        if (typeof dados !== 'undefined' && typeof usuarioLogado !== 'undefined') {
-            // Chama init existente se não rodou
-            if (typeof inicializarSistemaApostasDesafios === 'function') {
-                inicializarSistemaApostasDesafios();
-            }
-            // Interval para encerramentos (chama função existente)
-            if (intervalEncerramentos) clearInterval(intervalEncerramentos);
-            intervalEncerramentos = setInterval(() => {
-                if (typeof verificarEncerramentosAutomaticos === 'function' && dados.apostasUsuarios) {
-                    dados.apostasUsuarios.forEach(sala => verificarEncerramentosAutomaticos(sala, 'apostas'));
-                    salvarDados();
-                }
-            }, 300000);  // 5 min, como no original
-        }
-    }
-
-// === CONECTAR SOCKETS PARA APOSTAS (ISOLADO - ATUALIZADO) ===
-// === CONECTAR SOCKETS PARA APOSTAS (ATUALIZADO COM RETRY) ===
-function conectarSocketsApostas() {
-    if (socketApostas) return;
-    if (typeof socket !== 'undefined' && socket && socket.connected) {
-        socketApostas = socket;
-        setupListeners();
-        carregarSalasIniciais();
-        return;
-    }
-    // Cria novo com retry e auth opcional
-    setTimeout(() => {
-        const script = document.createElement('script');
-        script.src = `${SOCKET_SERVER}/socket.io/socket.io.js`;
-        script.onload = () => {
-            socketApostas = io(SOCKET_SERVER, { 
-                transports: ['websocket'], 
-                auth: TOKEN_JWT ? { token: TOKEN_JWT } : {}  // Auth só se tem token
-            });
-            setupListeners();
-            socketApostas.on('connect', () => {
-                console.log('[Apostas] Socket conectado (retry OK)');
-                carregarSalasIniciais();  // Recarrega após connect
-                joinRoomsApostas();
-            });
-            socketApostas.on('disconnect', (reason) => {
-                console.log('[Apostas] Desconectado por:', reason);  // Log reason para debug
-                if (reason !== 'io server disconnect') {  // Não retry em shutdown
-                    setTimeout(conectarSocketsApostas, 3000);  // Retry mais rápido
-                }
-            });
-        };
-        document.head.appendChild(script);
-    }, 500);
-}
-    function initSocketNovo() {
-        socketApostas = io(SOCKET_SERVER, { transports: ['websocket'], auth: { token: TOKEN_JWT } });
-        setupListeners();
-        socketApostas.on('connect', () => {
-            console.log('[Apostas] Socket conectado para rooms de apostas');
-            carregarSalasIniciais();
-        });
-    }
-
-    function setupListeners() {
-        // Listeners só para apostas (não toca chat)
-        socketApostas.on('nova-aposta', (data) => {
-            if (data.cardId && dados.apostasUsuarios) {
-                // Atualiza dados locais chamando funções existentes
-                const sala = dados.apostasUsuarios.find(s => s.cardId === data.cardId);
-                if (sala) {
-                    sala.apostas.push(data.aposta);
-                    salvarDados();
-                    if (typeof atualizarIndicadoresApostas === 'function') {
-                        atualizarIndicadoresApostas();
-                    }
-                    mostrarNotificacao(`Nova aposta: ${data.aposta.titulo}`, 'info');
-                }
-            }
-        });
-
-        socketApostas.on('aposta-atualizada', (data) => {
-            if (data.cardId && dados.apostasUsuarios) {
-                const sala = dados.apostasUsuarios.find(s => s.cardId === data.cardId);
-                if (sala && data.apostaId) {
-                    const aposta = sala.apostas.find(a => a.id === data.apostaId);
-                    if (aposta) {
-                        Object.assign(aposta, data.updates);  // Merge sem reescrever
-                        salvarDados();
-                        if (typeof atualizarIndicadoresApostas === 'function') {
-                            atualizarIndicadoresApostas();
-                        }
-                    }
-                }
-            }
-        });
-
-        socketApostas.on('aposta-encerrada', (data) => {
-            mostrarNotificacao(`Aposta encerrada em ${data.cardId}!`, 'info');
-            if (typeof verificarEncerramentosAutomaticos === 'function') {
-                const sala = dados.apostasUsuarios.find(s => s.cardId === data.cardId);
-                if (sala) verificarEncerramentosAutomaticos(sala, 'apostas');
-            }
-        });
-
-        socketApostas.on('disconnect', () => {
-            console.log('[Apostas] Socket desconectado, reconectando em 5s...');
-            setTimeout(conectarSocketsApostas, 5000);
-        });
-    }
-
-    // === CARREGAR SALAS VIA API (ISOLADO) ===
-    // === CARREGAR SALAS VIA API (ATUALIZADO COM FALLBACK SEM TOKEN) ===
-
-
-    // === JOIN ROOMS PARA APOSTAS (BASEADO EM CARDS VISÍVEIS) ===
-    function joinRoomsApostas() {
-        const videoInfos = document.querySelectorAll('.video-info');
-        Array.from(videoInfos).forEach(videoInfo => {
-            if (typeof gerarCardId === 'function') {
-                const cardId = gerarCardId(videoInfo);
-                const room = `${cardId}-${usuarioLogado?.merito || 'visitante'}`;
-                ROOMS_APOSTAS[cardId] = room;
-                if (socketApostas) {
-                    socketApostas.emit('join-room', { cardId, user: usuarioLogado?.nome || 'Anônimo', merito: usuarioLogado?.merito || 0 });
-                }
-            }
-        });
-    }
-
-    // === INICIALIZAÇÃO (RODA UMA VEZ) ===
-// === INICIALIZAÇÃO (ATUALIZADA COM DELAY E TESTE FAKE) ===
-function initApostasIntegracao() {
-    // Delay para aguardar init existente e cards carregarem
-    setTimeout(() => {
-        chamarExistentes();  // Chama inits existentes
-        conectarSocketsApostas();
-        carregarSalasIniciais();  // Chama load após delay
-    }, 2000);  // 2s para "Carregando lives" terminar
-
-    // Observer para novos cards (sem alterar DOM observer existente)
-    const observerApostas = new MutationObserver(() => {
-        joinRoomsApostas();
-        if (typeof adicionarBotoesApostasDesafios === 'function') {
-            adicionarBotoesApostasDesafios();
-        }
-    });
-    observerApostas.observe(document.body, { childList: true, subtree: true });
-    console.log('[Apostas] Integração separada ativada com delay');
 }
 
-// === CARREGAR SALAS VIA API (ATUALIZADO COM FAKE PARA TESTE) ===
-async function carregarSalasIniciais() {
-    const videoInfos = document.querySelectorAll('.video-info');
-    if (videoInfos.length === 0) {
-        console.warn('[Apostas] Sem cards visíveis ainda - retry em 2s');
-        setTimeout(carregarSalasIniciais, 2000);
+// Função global para abrir o chat do jogo
+function entrarSalaJogo(jogoId) {
+    const jogo = window.dados?.jogos?.find(j => j.id === jogoId);
+    if (!jogo) {
+        alert('Jogo não encontrado');
         return;
     }
 
-    const promises = Array.from(videoInfos).map(async (videoInfo) => {
-        if (typeof gerarCardId === 'function') {
-            const cardId = gerarCardId(videoInfo);
-            let salaApi = null;
-            if (TOKEN_JWT) {
-                try {
-                    const res = await fetch(`${API_BASE}/sala/${cardId}/apostas`, {
-                        headers: { Authorization: `Bearer ${TOKEN_JWT}` }
-                    });
-                    if (res.ok) salaApi = await res.json();
-                } catch (err) {
-                    console.warn('[Apostas] Erro API:', err.message);
-                }
-            }
-            // Fallback: Cria sala local com aposta FAKE para testar red dot
-            if (!salaApi && dados.apostasUsuarios) {
-                let salaLocal = dados.apostasUsuarios.find(s => s.cardId === cardId);
-                if (!salaLocal) {
-                    salaLocal = { 
-                        cardId, 
-                        apostas: [{
-                            id: 1,
-                            titulo: 'Teste Red Dot',
-                            status: 'aberta',  // Ou 'encerrada' para testar
-                            valor: 10,
-                            opcoes: ['Sim', 'Não'],
-                            participantes: [],
-                            dataCriacao: new Date().toLocaleString(),
-                            criador: usuarioLogado?.nome || 'Anônimo'
-                        }],
-                        criador: usuarioLogado?.nome || 'Anônimo', 
-                        dataCriacao: new Date().toLocaleString() 
-                    };
-                    dados.apostasUsuarios.push(salaLocal);
-                    salvarDados();
-                    console.log('[Apostas] Sala fake criada para red dot:', cardId);
-                }
-                salaApi = salaLocal;
-            }
-            return salaApi;
-        }
+    // Fechar modal existente se houver
+    if (window.modalChatAtual) {
+        window.modalChatAtual.close();
+    }
+
+    // Criar nova instância do modal
+    window.modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
+}
+
+// Função para abrir o chat do jogo (chamada pelo botão)
+function entrarSalaJogo(jogoId) {
+    const jogo = dados.jogos.find(j => j.id === jogoId);
+    if (!jogo) return;
+
+    // Fechar modal existente se houver
+    if (modalChatAtual) {
+        modalChatAtual.close();
+    }
+
+    modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
+}
+
+
+// globalChatInjetado.js - Adicionar esta função
+
+function entrarSalaJogo(jogoId) {
+    const jogo = dados.jogos.find(j => j.id === jogoId);
+    if (!jogo) {
+        mostrarNotificacao('Jogo não encontrado', 'erro');
+        return;
+    }
+
+    // Fechar modal existente se houver
+    if (typeof window.modalChatAtual !== 'undefined' && window.modalChatAtual) {
+        window.modalChatAtual.close();
+    }
+
+    // Criar nova instância do modal
+    window.modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
+}
+
+
+// Inicialização segura do Socket.IO (adicionar no main.js ou no início do script)
+function initializeSocketIO() {
+    if (typeof io === 'undefined') {
+        console.error('Socket.IO não carregado. Verifique se o script foi incluído.');
         return null;
-    });
-
-    const salas = (await Promise.all(promises)).filter(Boolean);
-    if (salas.length > 0 && dados.apostasUsuarios) {
-        salas.forEach(salaApi => {
-            let salaLocal = dados.apostasUsuarios.find(s => s.cardId === salaApi.cardId);
-            if (!salaLocal) {
-                salaLocal = salaApi;
-                dados.apostasUsuarios.push(salaLocal);
-            } else {
-                const novasApostas = salaApi.apostas.filter(a => !salaLocal.apostas.some(existing => existing.id === a.id));
-                salaLocal.apostas.push(...novasApostas);
-            }
-            salvarDados();
+    }
+    
+    try {
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('✅ Conectado ao servidor Socket.IO');
         });
-        // Força update múltiplo para garantir red dot
-        setTimeout(() => {
-            if (typeof adicionarBotoesApostasDesafios === 'function') {
-                adicionarBotoesApostasDesafios();
-            }
-            if (typeof atualizarIndicadoresApostas === 'function') {
-                atualizarIndicadoresApostas();
-            }
-            console.log('[Apostas] UI atualizada - verifique red dot');
-        }, 500);
-        console.log('[Apostas] Salas carregadas:', salas.length);
-    } else {
-        console.warn('[Apostas] Ainda sem salas - login necessário para API');
+        
+        socket.on('disconnect', () => {
+            console.log('❌ Desconectado do servidor Socket.IO');
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('❌ Erro de conexão Socket.IO:', error);
+        });
+        
+        return socket;
+    } catch (error) {
+        console.error('❌ Erro ao inicializar Socket.IO:', error);
+        return null;
     }
 }
-    // === AUTO-START ===
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initApostasIntegracao);
-    } else {
-        initApostasIntegracao();
-    }
 
-})();
+// Inicializar automaticamente se não existir
+if (typeof socket === 'undefined') {
+    window.socket = initializeSocketIO();
+}
 
 
-
-
-
+*/
 
 
 // ===== SISTEMA DE SESSÃO UNIFICADO =====

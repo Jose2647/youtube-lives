@@ -1,3 +1,5 @@
+
+
 import mongoose from 'mongoose';
 
 
@@ -151,18 +153,7 @@ const chatSchema = new mongoose.Schema({
     mensagem: { type: String, required: true },
     data: { type: Date, default: Date.now }
 });
-/*
-const chatSchema = new mongoose.Schema({
-    cardId: String,
-    messages: [{
-        usuario: String,
-        mensagem: String,
-        data: Date,
-        readBy: [String]
-    }],
-    voiceParticipants: [String]
-});
-*/
+
 
 
 // Models

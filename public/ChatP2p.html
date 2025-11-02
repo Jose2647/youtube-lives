@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat P2P Local</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin: 10px 0; }
+        .message { margin: 5px 0; }
+        .system { color: #666; font-style: italic; }
+        .you { color: #0066cc; }
+        .friend { color: #009900; }
+        .info { background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>💻 Chat P2P Local</h1>
+    
+    <div class="info">
+        <strong>Como usar:</strong><br>
+        1. Descubra seu IP local abaixo<br>
+        2. Abra este mesmo site em outro dispositivo na mesma rede Wi-Fi<br>
+        3. Use o IP:PORT para conectar
+    </div>
+
+    <div>
+        <h3>Seu ID: <span id="localId">Gerando...</span></h3>
+        <button onclick="copyToClipboard()">📋 Copiar ID</button>
+    </div>
+
+    <div>
+        <h3>Seu endereço local:</h3>
+        <div id="localAddress">Calculando...</div>
+        <button onclick="showQRCode()">📱 QR Code</button>
+    </div>
+
+    <div>
+        <h3>Conectar a outro dispositivo:</h3>
+        <input type="text" id="remoteIdInput" placeholder="ID do amigo" style="width: 120px;">
+        <input type="text" id="remoteAddressInput" placeholder="IP:Porta (opcional)" style="width: 150px;">
+        <button onclick="connect()">🔗 Conectar</button>
+    </div>
+
+    <div>
+        <h3>Status: <span id="status">Desconectado</span></h3>
+    </div>
+
+    <div>
+        <h3>Chat:</h3>
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Digite sua mensagem" style="width: 70%;">
+        <button onclick="sendMessage()">📤 Enviar</button>
+    </div>
+
+    <!-- Modal para QR Code -->
+    <div id="qrModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:10px; text-align:center;">
+            <h3>📱 Conectar via QR Code</h3>
+            <div id="qrcode"></div>
+            <div id="qrUrl" style="margin:10px 0; word-break:break-all;"></div>
+            <button onclick="closeQRCode()">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let localId = generateId();
+        let remoteId = null;
+        let peerConnection = null;
+        let dataChannel = null;
+        let isInitiator = false;
+        let pendingCandidates = [];
+        let ws = null;
+        let localAddress = '';
+
+        // Configuração WebRTC para rede local
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ],
+            iceCandidatePoolSize: 5
+        };
+
+        // Inicializar
+        document.getElementById('localId').textContent = localId;
+        discoverLocalAddress();
+        startWebSocketServer();
+
+        // Gerar ID aleatório
+        function generateId() {
+            return Math.random().toString(36).substring(2, 8);
+        }
+
+        // Descobrir endereço local
+        function discoverLocalAddress() {
+            // Tenta descobrir o IP local via WebRTC
+            const pc = new RTCPeerConnection({ iceServers: [] });
+            pc.createDataChannel('');
+            pc.createOffer().then(offer => pc.setLocalDescription(offer));
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidate = event.candidate.candidate;
+                    // Procura por endereços IPv4 locais
+                    const ipMatch = candidate.match(/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/);
+                    if (ipMatch && isLocalIP(ipMatch[1])) {
+                        localAddress = ipMatch[1] + ':' + (window.location.port || '80');
+                        document.getElementById('localAddress').innerHTML = 
+                            `<strong>http://${localAddress}</strong>`;
+                    }
+                }
+            };
+            
+            setTimeout(() => {
+                if (!localAddress) {
+                    // Fallback: usa o hostname atual
+                    localAddress = window.location.hostname + ':' + (window.location.port || '80');
+                    document.getElementById('localAddress').innerHTML = 
+                        `<strong>http://${localAddress}</strong> (aproximado)`;
+                }
+                pc.close();
+            }, 1000);
+        }
+
+        function isLocalIP(ip) {
+            return ip.startsWith('192.168.') || 
+                   ip.startsWith('10.') || 
+                   ip.startsWith('172.16.') ||
+                   ip.startsWith('172.17.') ||
+                   ip.startsWith('172.18.') ||
+                   ip.startsWith('172.19.') ||
+                   ip.startsWith('172.20.') ||
+                   ip.startsWith('172.21.') ||
+                   ip.startsWith('172.22.') ||
+                   ip.startsWith('172.23.') ||
+                   ip.startsWith('172.24.') ||
+                   ip.startsWith('172.25.') ||
+                   ip.startsWith('172.26.') ||
+                   ip.startsWith('172.27.') ||
+                   ip.startsWith('172.28.') ||
+                   ip.startsWith('172.29.') ||
+                   ip.startsWith('172.30.') ||
+                   ip.startsWith('172.31.');
+        }
+
+        // Servidor WebSocket simples para sinalização
+        function startWebSocketServer() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    addMessage('Sistema', '✅ Conectado ao servidor de sinalização', 'system');
+                    // Registrar no servidor
+                    ws.send(JSON.stringify({
+                        type: 'register',
+                        id: localId
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleSignalingMessage(message);
+                    } catch (error) {
+                        console.error('Erro ao processar mensagem:', error);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    addMessage('Sistema', '⚠️ Servidor desconectado. Usando fallback...', 'system');
+                    // Usar fallback com localStorage
+                    startFallbackSignaling();
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    addMessage('Sistema', '⚠️ Usando modo fallback...', 'system');
+                    startFallbackSignaling();
+                };
+                
+            } catch (error) {
+                console.error('WebSocket failed:', error);
+                startFallbackSignaling();
+            }
+        }
+
+        // Fallback: usar localStorage para sinalização
+        function startFallbackSignaling() {
+            addMessage('Sistema', '🔧 Modo fallback ativado (apenas mesma aba)', 'system');
+            
+            window.addEventListener('storage', (event) => {
+                if (event.key && event.key.startsWith('p2p_signal_') && event.newValue) {
+                    try {
+                        const message = JSON.parse(event.newValue);
+                        if (message.to === localId) {
+                            handleSignalingMessage(message);
+                        }
+                    } catch (error) {
+                        console.error('Erro no fallback:', error);
+                    }
+                }
+            });
+        }
+
+        // Enviar sinalização
+        function sendSignal(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+            } else {
+                // Fallback: localStorage
+                const signalKey = 'p2p_signal_' + Date.now();
+                localStorage.setItem(signalKey, JSON.stringify(message));
+                setTimeout(() => localStorage.removeItem(signalKey), 5000);
+            }
+        }
+
+        // Processar mensagens de sinalização
+        function handleSignalingMessage(message) {
+            console.log('📨 Recebido:', message.type);
+            
+            switch (message.type) {
+                case 'offer':
+                    handleOffer(message);
+                    break;
+                case 'answer':
+                    handleAnswer(message);
+                    break;
+                case 'ice-candidate':
+                    handleIceCandidate(message);
+                    break;
+                case 'ping':
+                    // Responder ao ping
+                    if (message.to === localId) {
+                        sendSignal({
+                            type: 'pong',
+                            from: localId,
+                            to: message.from
+                        });
+                    }
+                    break;
+            }
+        }
+
+        // Copiar ID
+        function copyToClipboard() {
+            navigator.clipboard.writeText(localId).then(function() {
+                alert('✅ ID copiado: ' + localId);
+            });
+        }
+
+        // Conectar
+        function connect() {
+            remoteId = document.getElementById('remoteIdInput').value;
+            const remoteAddress = document.getElementById('remoteAddressInput').value;
+            
+            if (!remoteId) {
+                alert('❌ Digite o ID do amigo!');
+                return;
+            }
+
+            // Se tem endereço remoto, tentar conectar via WebSocket
+            if (remoteAddress && !ws) {
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    ws = new WebSocket(`${protocol}//${remoteAddress}`);
+                    
+                    ws.onopen = () => {
+                        ws.send(JSON.stringify({ type: 'register', id: localId }));
+                        performWebRTCHandshake();
+                    };
+                    
+                    ws.onmessage = (event) => {
+                        const message = JSON.parse(event.data);
+                        handleSignalingMessage(message);
+                    };
+                    
+                } catch (error) {
+                    console.error('Erro ao conectar:', error);
+                }
+            } else {
+                performWebRTCHandshake();
+            }
+        }
+
+        // Realizar handshake WebRTC
+        function performWebRTCHandshake() {
+            createPeerConnection();
+            isInitiator = true;
+
+            dataChannel = peerConnection.createDataChannel('chat');
+            setupDataChannel(dataChannel);
+
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    sendSignal({
+                        type: 'offer',
+                        sdp: peerConnection.localDescription,
+                        from: localId,
+                        to: remoteId
+                    });
+                    updateStatus('📤 Enviando oferta...');
+                })
+                .catch(console.error);
+        }
+
+        // Criar conexão peer
+        function createPeerConnection() {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+
+            peerConnection = new RTCPeerConnection(configuration);
+            pendingCandidates = [];
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendSignal({
+                        type: 'ice-candidate',
+                        candidate: event.candidate,
+                        from: localId,
+                        to: remoteId
+                    });
+                }
+            };
+
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannel(dataChannel);
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                updateStatus(peerConnection.connectionState);
+            };
+        }
+
+        // Configurar canal de dados
+        function setupDataChannel(channel) {
+            channel.onopen = () => {
+                updateStatus('✅ Conectado!');
+                addMessage('Sistema', '🎉 Conexão P2P estabelecida!', 'system');
+            };
+
+            channel.onmessage = (event) => {
+                addMessage('Amigo', event.data, 'friend');
+            };
+
+            channel.onclose = () => {
+                updateStatus('❌ Desconectado');
+                addMessage('Sistema', '🔌 Conexão fechada', 'system');
+            };
+        }
+
+        // Lidar com oferta
+        function handleOffer(message) {
+            if (!peerConnection) {
+                createPeerConnection();
+                isInitiator = false;
+            }
+
+            remoteId = message.from;
+            document.getElementById('remoteIdInput').value = remoteId;
+
+            peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => peerConnection.setLocalDescription(answer))
+                .then(() => {
+                    sendSignal({
+                        type: 'answer',
+                        sdp: peerConnection.localDescription,
+                        from: localId,
+                        to: remoteId
+                    });
+                    updateStatus('📥 Respondendo...');
+                })
+                .catch(console.error);
+        }
+
+        // Lidar com resposta
+        function handleAnswer(message) {
+            if (peerConnection) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp))
+                    .catch(console.error);
+            }
+        }
+
+        // Lidar com candidato ICE
+        function handleIceCandidate(message) {
+            const candidate = new RTCIceCandidate(message.candidate);
+            if (peerConnection) {
+                peerConnection.addIceCandidate(candidate).catch(console.error);
+            }
+        }
+
+        // Enviar mensagem
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                alert('Não conectado!');
+                return;
+            }
+
+            dataChannel.send(message);
+            addMessage('Você', message, 'you');
+            input.value = '';
+        }
+
+        // Adicionar mensagem
+        function addMessage(sender, message, type = 'system') {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}`;
+            messageElement.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Atualizar status
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+
+        // QR Code
+        function showQRCode() {
+            const url = window.location.href;
+            document.getElementById('qrUrl').textContent = url;
+            document.getElementById('qrModal').style.display = 'block';
+            
+            // Simular QR Code (em produção use uma lib como qrcode.js)
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = `<div style="padding:20px; background:white;">
+                <strong>📱 Escaneie com a câmera</strong><br>
+                Ou acesse:<br>
+                <small>${url}</small>
+            </div>`;
+        }
+
+        function closeQRCode() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        // Enviar com Enter
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Servidor WebSocket simples (para Node.js) - instruções no console
+        console.log(`
+Para servidor WebSocket completo, execute:
+
+npm install ws
+node -e "
+const WebSocket = require('ws');
+const server = new WebSocket.Server({ port: 8080 });
+const clients = new Map();
+
+server.on('connection', (ws, req) => {
+    const id = require('crypto').randomBytes(4).toString('hex');
+    clients.set(id, ws);
+    ws.id = id;
+    
+    ws.on('message', (message) => {
+        const data = JSON.parse(message);
+        if (data.type === 'register') {
+            ws.userId = data.id;
+            ws.send(JSON.stringify({ type: 'registered', id: ws.userId }));
+        } else {
+            // Encaminhar mensagem para o destinatário
+            for (let [clientId, client] of clients) {
+                if (client.userId === data.to && client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(data));
+                }
+            }
+        }
+    });
+    
+    ws.on('close', () => {
+        clients.delete(ws.id);
+    });
+});
+
+console.log('WebSocket server running on port 8080');
+"
+        `);
+
+        addMessage('Sistema', '🌐 Conectado na rede local', 'system');
+        addMessage('Sistema', `💡 Compartilhe: ${window.location.href}`, 'system');
+    </script>
+</body>
+</html>
