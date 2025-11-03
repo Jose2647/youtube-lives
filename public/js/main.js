@@ -3,7 +3,37 @@
 /* ---------------------------
    VARIÁVEIS GLOBAIS E ESTADO
    --------------------------- */
+let peers = {}; // Inicializando peers
+let localStream = null; // Inicializando localStream
+let dados = { // Inicializando dados se não definido externamente
+  apostasUsuarios: [],
+  desafiosUsuarios: [],
+  chats: [],
+  usuarios: [],
+  jogos: [],
+  transacoes: [],
+  version: Date.now()
+}; // Ajuste conforme necessário
+
 console.log("_____dados", dados);
+
+// main.js - Configuração STUN com serviços gratuitos (apenas STUNs públicos gratuitos)
+
+const pcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'stun:stun.stunprotocol.org:3478' },
+        { urls: 'stun:stun.voiparound.com' },
+        // Adicione mais STUNs gratuitos se necessário, sem TURN
+    ]
+};
+// DEPOIS (USE A CONFIGURAÇÃO):
+// pc1 = new RTCPeerConnection(pcConfig); // Use a nova config aqui
+// pc2 = new RTCPeerConnection(pcConfig); // E aqui
 
 
 
@@ -23,6 +53,11 @@ function initChatUI() {
   messagesDiv = document.getElementById('messages');
   localVideo = document.getElementById('localVideo');
   remoteContainer = document.getElementById('remoteContainer'); // opcional container para múltiplos remotos
+  roomsSelect = document.getElementById('roomsSelect'); // Novo: select para salas
+  joinRoomButton = document.getElementById('joinRoomButton'); // Novo: botão para join sala
+  createRoomButton = document.getElementById('createRoomButton'); // Novo botão para criar sala
+
+  console.log('[UI] Inicializando elementos UI:', { startButton, callButton, hangupButton, createRoomButton }); // Log adicionado para depurar UI
 
   // Protege caso elementos não existam (safety)
   if (startButton) startButton.addEventListener('click', start);
@@ -30,6 +65,10 @@ function initChatUI() {
   if (hangupButton) hangupButton.addEventListener('click', hangupAll);
   if (sendButton) sendButton.addEventListener('click', sendMessage);
   if (sendCustomDataButton) sendCustomDataButton.addEventListener('click', sendCustomData);
+
+  // Novo: listeners para seleção de sala e criação
+  if (joinRoomButton) joinRoomButton.addEventListener('click', joinSelectedRoom);
+  if (createRoomButton) createRoomButton.addEventListener('click', handleCreateRoom);
 
   // inicial state
   if (startButton) startButton.disabled = false;
@@ -44,6 +83,9 @@ function initChatUI() {
       if (e.key === 'Enter') sendMessage();
     });
   }
+
+  // Carrega lista de salas ao iniciar UI
+  loadRoomsList();
 }
 
 /* ---------------------------
@@ -51,6 +93,7 @@ function initChatUI() {
    --------------------------- */
 signaling.on('connect', () => {
   currentGameId = getCurrentGameId();
+  console.log('[SIGNALING] Conectado ao signaling server. Game ID:', currentGameId); // Log adicionado para depurar conexão
   if (currentGameId) {
     signaling.emit('join_room', currentGameId);
     logMessage(`[SINALIZAÇÃO] Entrou na sala: ${currentGameId}`);
@@ -62,6 +105,7 @@ signaling.on('connect', () => {
 signaling.on('peer_joined', async ({ peerId }) => {
   if (!peerId || peerId === signaling.id) return;
   logMessage(`Peer entrou na sala: ${peerId}`);
+  console.log('[SIGNALING] Peer joined:', peerId); // Log adicionado
   // Cria conexão e (como ofertante) inicia offer para esse peer
   await createPeerConnection(peerId, true);
 });
@@ -69,15 +113,26 @@ signaling.on('peer_joined', async ({ peerId }) => {
 signaling.on('peer_left', ({ peerId }) => {
   if (!peerId) return;
   logMessage(`Peer saiu: ${peerId}`);
+  console.log('[SIGNALING] Peer left:', peerId); // Log adicionado
   closePeerConnection(peerId);
+});
+
+// Novo: Recebe lista de salas do servidor
+signaling.on('rooms_list', (rooms) => {
+  console.log('[SIGNALING] Lista de salas recebida:', rooms);
+  populateRoomsSelect(rooms);
 });
 
 // Recebe sinais (ofertas, answers, ICE) retransmitidos pelo servidor.
 // O servidor adiciona `from` (ID do remetente).
 signaling.on('signal', async (message) => {
+  console.log('[SIGNALING] Sinal recebido:', message); // Log adicionado para depurar signals
   try {
     const from = message.from;
     if (!from || from === signaling.id) return; // ignora mensagens próprias
+
+    // Adiciona check para 'to' se disponível (para evitar processamento desnecessário)
+    if (message.to && message.to !== signaling.id) return;
 
     // Garante que exista um peer para esse `from`
     if (!peers[from]) {
@@ -90,13 +145,15 @@ signaling.on('signal', async (message) => {
       await pc.setRemoteDescription(new RTCSessionDescription(message));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      signaling.emit('signal', { ...answer, from: signaling.id });
+      signaling.emit('signal', { ...answer, to: from, from: signaling.id });
+      console.log('[SIGNALING] Answer enviado para:', from); // Log adicionado
     } else if (message.type === 'answer') {
       logMessage(`Answer recebido de ${from}.`);
       await pc.setRemoteDescription(new RTCSessionDescription(message));
     } else if (message.type === 'candidate' && message.candidate) {
       // candidate recebido
       await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+      console.log('[ICE] Candidate adicionado de:', from); // Log adicionado
     } else {
       console.warn('Sinal desconhecido:', message);
     }
@@ -114,17 +171,29 @@ async function createPeerConnection(peerId, isOfferer) {
     return peers[peerId].connection;
   }
 
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-  });
+  console.log('[PEER] Criando conexão para peer:', peerId, 'isOfferer:', isOfferer); // Log adicionado
 
+  const pc = new RTCPeerConnection(pcConfig);
   peers[peerId] = { connection: pc, dataChannel: null };
 
-  // ICE candidates -> enviar sinalização (servidor retransmitirá para a sala)
+  // ICE candidates -> enviar sinalização (servidor retransmitirá para o peer específico)
   pc.onicecandidate = (event) => {
     if (event.candidate) {
-      signaling.emit('signal', { type: 'candidate', candidate: event.candidate, from: signaling.id });
+      signaling.emit('signal', { type: 'candidate', candidate: event.candidate, to: peerId, from: signaling.id });
+      console.log('[ICE] Candidate gerado e enviado para:', peerId); // Log adicionado
+    } else {
+      console.log('[ICE] Gathering completo para:', peerId); // Log adicionado para ICE complete
     }
+  };
+
+  // Adicione onicegatheringstatechange para depurar
+  pc.onicegatheringstatechange = () => {
+    console.log('[ICE] Gathering state changed:', pc.iceGatheringState, 'para peer:', peerId); // Log adicionado
+  };
+
+  // Adicione oniceconnectionstatechange para depurar ICE connection
+  pc.oniceconnectionstatechange = () => {
+    console.log('[ICE] Connection state changed:', pc.iceConnectionState, 'para peer:', peerId); // Log adicionado
   };
 
   // Quando receber canal remoto (quando este peer não for offerer)
@@ -132,10 +201,12 @@ async function createPeerConnection(peerId, isOfferer) {
     const channel = event.channel;
     peers[peerId].dataChannel = channel;
     setupDataChannel(peerId, channel, 'Remoto');
+    console.log('[DATACHANNEL] Canal remoto recebido de:', peerId); // Log adicionado
   };
 
   // Quando recebe track remoto (áudio dos peers)
   pc.ontrack = (event) => {
+    console.log('[TRACK] Track remoto recebido de:', peerId, event); // Log adicionado
     // Cria/atualiza elemento de áudio para esse peer
     let audioEl = document.getElementById(`audio_${peerId}`);
     if (!audioEl) {
@@ -153,6 +224,7 @@ async function createPeerConnection(peerId, isOfferer) {
   // Adiciona tracks locais (se já houver stream)
   if (localStream) {
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    console.log('[TRACK] Tracks locais adicionados para:', peerId); // Log adicionado
   }
 
   // Se for o ofertante, cria data channel local e oferta
@@ -164,9 +236,10 @@ async function createPeerConnection(peerId, isOfferer) {
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      // envia offer via sinalização (servidor retransmite para os outros peers da sala)
-      signaling.emit('signal', { ...offer, from: signaling.id });
-      logMessage(`Offer enviada para sala (de ${signaling.id}) para peer ${peerId}`);
+      // envia offer via sinalização para o peer específico
+      signaling.emit('signal', { ...offer, to: peerId, from: signaling.id });
+      logMessage(`Offer enviada para peer ${peerId} (de ${signaling.id})`);
+      console.log('[SDP] Offer criada e enviada para:', peerId); // Log adicionado
     } catch (err) {
       console.error('Erro ao criar offer', err);
     }
@@ -175,6 +248,7 @@ async function createPeerConnection(peerId, isOfferer) {
   // onconnectionstatechange
   pc.onconnectionstatechange = () => {
     logMessage(`Estado conexão ${peerId}: ${pc.connectionState}`);
+    console.log('[PEER] Connection state changed:', pc.connectionState, 'para peer:', peerId); // Log adicionado
     if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
       // limpa
       closePeerConnection(peerId);
@@ -187,6 +261,7 @@ async function createPeerConnection(peerId, isOfferer) {
 function closePeerConnection(peerId) {
   const peer = peers[peerId];
   if (!peer) return;
+  console.log('[PEER] Fechando conexão para:', peerId); // Log adicionado
   try {
     if (peer.dataChannel) peer.dataChannel.close();
     if (peer.connection) peer.connection.close();
@@ -208,6 +283,7 @@ function closePeerConnection(peerId) {
 function setupDataChannel(peerId, channel, tipo) {
   channel.onopen = () => {
     logMessage(`[${tipo}] Canal de dados com ${peerId} aberto.`);
+    console.log('[DATACHANNEL] Canal aberto com:', peerId); // Log adicionado
     // habilita UI de mensagens quando qualquer canal abrir
     if (sendButton) sendButton.disabled = false;
     if (messageInput) messageInput.disabled = false;
@@ -216,6 +292,7 @@ function setupDataChannel(peerId, channel, tipo) {
 
   channel.onclose = () => {
     logMessage(`Canal de dados com ${peerId} fechado.`);
+    console.log('[DATACHANNEL] Canal fechado com:', peerId); // Log adicionado
     // se todos fecharem, desabilita UI
     const anyOpen = Object.values(peers).some(p => p.dataChannel && p.dataChannel.readyState === 'open');
     if (!anyOpen) {
@@ -230,6 +307,7 @@ function setupDataChannel(peerId, channel, tipo) {
   };
 
   channel.onmessage = (event) => {
+    console.log('[DATACHANNEL] Mensagem recebida de:', peerId, event.data); // Log adicionado para depurar mensagens
     let parsed;
     try {
       parsed = JSON.parse(event.data);
@@ -241,7 +319,7 @@ function setupDataChannel(peerId, channel, tipo) {
       // lógica de sincronização (mantive sua ideia original)
       const payload = parsed.payload || {};
       const gameId = payload.gameId;
-      if (gameId) {
+      if (gameId && parsed.version > dados.version) { // Adiciona check de versão para evitar loops
         // substitui dados do jogo específico sem sobrescrever tudo
         dados.apostasUsuarios = dados.apostasUsuarios.filter(a => a.jogoId !== gameId);
         dados.desafiosUsuarios = dados.desafiosUsuarios.filter(d => d.jogoId !== gameId);
@@ -271,10 +349,12 @@ function setupDataChannel(peerId, channel, tipo) {
    FUNÇÕES DE ÁUDIO E CHAMADA
    --------------------------- */
 async function start() {
-  startButton && (startButton.disabled = true);
+  if (startButton) startButton.disabled = true;
+  console.log('[AUDIO] Iniciando getUserMedia...'); // Log adicionado
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     localStream = stream;
+    console.log('[AUDIO] Stream obtido:', stream.getTracks()); // Log adicionado para tracks
 
     // mostra local audio (muted)
     if (localVideo) {
@@ -282,27 +362,34 @@ async function start() {
       localVideo.muted = true;
     }
 
-    // Adiciona as tracks locais a todas as conexões já existentes
-    Object.values(peers).forEach(({ connection }) => {
+    // Adiciona as tracks locais a todas as conexões já existentes e renegocia se necessário
+    for (const peerId in peers) {
+      const pc = peers[peerId].connection;
       try {
-        localStream.getTracks().forEach(track => connection.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        // Força renegociação após adicionar tracks
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signaling.emit('signal', { ...offer, to: peerId, from: signaling.id });
+        console.log('[SDP] Renegociação enviada para:', peerId); // Log adicionado
       } catch (e) {
-        console.warn('Erro adicionando track a conexão existente', e);
+        console.warn('Erro adicionando track e renegociando para conexão existente', e);
       }
-    });
+    }
 
-    callButton && (callButton.disabled = false);
-    hangupButton && (hangupButton.disabled = false);
+    if (callButton) callButton.disabled = false;
+    if (hangupButton) hangupButton.disabled = false;
     logMessage('Microfone ativado. Você pode iniciar chamadas P2P (as ofertas serão enviadas).');
   } catch (e) {
     console.error('getUserMedia erro:', e);
     alert('Erro ao acessar o microfone: ' + (e.message || e.name));
-    startButton && (startButton.disabled = false);
+    if (startButton) startButton.disabled = false;
   }
 }
 
 // Quando usuário quer iniciar ofertas para todos (útil se já houver peers)
 async function callAll() {
+  console.log('[CALL] Iniciando callAll para peers:', Object.keys(peers)); // Log adicionado
   // para cada peer sem dataChannel aberto, cria offer (se ainda não tiver sido ofertado)
   const peerIds = Object.keys(peers);
   for (const peerId of peerIds) {
@@ -320,6 +407,7 @@ async function callAll() {
 }
 
 function hangupAll() {
+  console.log('[HANGUP] Iniciando hangupAll para todos os peers'); // Log adicionado
   // fecha todas as conexões
   Object.keys(peers).forEach(peerId => closePeerConnection(peerId));
 
@@ -349,10 +437,16 @@ function sendMessage() {
   if (!text) return;
   const message = { sender: 'Você', text, timestamp: Date.now() };
 
+  console.log('[CHAT] Enviando mensagem:', message); // Log adicionado
+
   // envia para TODOS os peers via seus data channels
-  Object.values(peers).forEach(({ dataChannel }) => {
+  Object.entries(peers).forEach(([peerId, { dataChannel }]) => {
     if (dataChannel && dataChannel.readyState === 'open') {
-      dataChannel.send(JSON.stringify(message));
+      try {
+        dataChannel.send(JSON.stringify(message));
+      } catch (e) {
+        console.warn('Erro ao enviar mensagem para peer ' + peerId, e);
+      }
     }
   });
 
@@ -367,9 +461,14 @@ function sendMessage() {
 
 function sendDataChannelObjectToAll(obj) {
   const json = JSON.stringify(obj);
-  Object.values(peers).forEach(({ dataChannel }) => {
+  console.log('[SYNC] Enviando objeto sync:', obj); // Log adicionado
+  Object.entries(peers).forEach(([peerId, { dataChannel }]) => {
     if (dataChannel && dataChannel.readyState === 'open') {
-      dataChannel.send(json);
+      try {
+        dataChannel.send(json);
+      } catch (e) {
+        console.warn('Erro ao enviar objeto para peer ' + peerId, e);
+      }
     }
   });
 }
@@ -446,6 +545,76 @@ function syncDataToPeers() {
 }
 
 /* ---------------------------
+   NOVAS FUNÇÕES PARA SALAS
+   --------------------------- */
+// Carrega lista de salas (emita evento para servidor buscar lista)
+function loadRoomsList() {
+  signaling.emit('get_rooms_list'); // Assuma que servidor responde com 'rooms_list'
+}
+
+// Popula select com salas
+function populateRoomsSelect(rooms) {
+  if (!roomsSelect) return;
+  roomsSelect.innerHTML = ''; // Limpa
+  rooms.forEach(room => {
+    const option = document.createElement('option');
+    option.value = room;
+    option.textContent = room;
+    if (room === currentGameId) option.selected = true;
+    roomsSelect.appendChild(option);
+  });
+}
+
+// Join na sala selecionada (troca de sala)
+function joinSelectedRoom() {
+  const newGameId = roomsSelect.value;
+  if (!newGameId || newGameId === currentGameId) return;
+
+  // Fecha conexões atuais (hangupAll)
+  hangupAll();
+
+  // Join nova sala
+  currentGameId = newGameId;
+  signaling.emit('join_room', currentGameId);
+  logMessage(`[SINALIZAÇÃO] Trocado para sala: ${currentGameId}`);
+
+  // Atualiza dados se necessário (ex: recarregar chats da nova sala)
+  // syncDataToPeers(); // Opcional
+}
+
+// Nova função para lidar com criação de sala
+function handleCreateRoom() {
+  // Obter nome do jogo (assumindo que existe uma variável ou função para isso, ex: dados.jogos[0].nome ou prompt para input)
+  const gameName = prompt('Digite o nome do jogo para gerar o nome da sala:');
+  if (!gameName) return;
+
+  // Gerar nome da sala baseado no jogo (ex: "jogo-nome-room")
+  let proposedRoomName = `${gameName.toLowerCase().replace(/\s/g, '-')}-room`;
+
+  // Verificar se a sala já existe (emitir para servidor checar)
+  signaling.emit('check_room_exists', proposedRoomName, (exists) => {
+    if (exists) {
+      alert(`Sala "${proposedRoomName}" já existe. Tente outro nome.`);
+      handleCreateRoom(); // Recursivo para tentar novamente
+    } else {
+      // Perguntar ao usuário se quer criar ou mudar
+      const confirmCreate = confirm(`Sala "${proposedRoomName}" não existe. Deseja criar esta sala? (Sim para criar, Não para mudar o nome)`);
+      if (confirmCreate) {
+        // Criar sala e torná-la disponível
+        signaling.emit('create_room', proposedRoomName);
+        currentGameId = proposedRoomName; // Atualizar currentGameId
+        signaling.emit('join_room', proposedRoomName); // Join na nova sala
+        logMessage(`[SINALIZAÇÃO] Sala "${proposedRoomName}" criada e entrada.`);
+        loadRoomsList(); // Atualizar lista de salas
+      } else {
+        // Mudar nome: recursivo
+        handleCreateRoom();
+      }
+    }
+  });
+}
+
+/* ---------------------------
    FUNÇÕES DO MODAL (mantidas/adaptadas)
    --------------------------- */
 function abrirChatModal() {
@@ -473,6 +642,12 @@ function abrirChatModal() {
     <div id="container">
       <h1>WebRTC Voice & Text Chat</h1>
       <p>Comunicação P2P de Áudio e Texto via WebRTC.</p>
+      <div id="roomsContainer" style="margin-bottom: 10px;">
+        <label for="roomsSelect">Salas disponíveis:</label>
+        <select id="roomsSelect"></select>
+        <button id="joinRoomButton">Entrar na Sala</button>
+        <button id="createRoomButton">Criar Nova Sala</button>
+      </div>
       <div id="video-streams">
         <audio id="localVideo" playsinline autoplay muted class="video-hidden"></audio>
         <div id="remoteContainer"></div>
@@ -500,6 +675,8 @@ function abrirChatModal() {
   chatModalElement.appendChild(modalContent);
   document.body.appendChild(chatModalElement);
   chatModalAberto = true;
+
+  console.log('[MODAL] Modal de chat aberto'); // Log adicionado
 
   // inicializa elementos e listeners
   setTimeout(() => {
@@ -529,7 +706,9 @@ function fecharChatModal() {
    UTILITÁRIAS
    --------------------------- */
 function getCurrentGameId() {
-  return window.salaAtual || (dados.jogos && dados.jogos[0] && dados.jogos[0].id);
+  const id = window.salaAtual || (dados.jogos && dados.jogos[0] && dados.jogos[0].id) || 'default_room'; // Fallback para teste
+  console.log('[GAME] Current Game ID details:', { salaAtual: window.salaAtual, jogos: dados.jogos, id });
+  return id;
 }
 
 // Se desejar abrir o modal automaticamente:

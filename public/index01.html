@@ -212,7 +212,14 @@ let salaAtual = null;
 // variaveis-globais.js
 
 
-
+let dados = {
+    jogos: [],
+    usuarios: [],
+    transacoes: [],
+    apostasUsuarios: [],
+    desafiosUsuarios: [],
+    chats: [] // Store chats per cardId
+};
 
 
 
@@ -942,12 +949,11 @@ btnSalaEstadio.onclick = () => abrirChatModal(jogo.id);
   
   
 // main.js (integrado para múltiplos peers com áudio + chat P2P)
-// main.js (integrado para múltiplos peers com áudio + chat P2P)
+/*
 
-/* ---------------------------
-   VARIÁVEIS GLOBAIS E ESTADO
-   --------------------------- */
 
+let peers = {}; // Inicializando peers
+let localStream = null; // Inicializando localStream
 let dados = { // Inicializando dados se não definido externamente
   apostasUsuarios: [],
   desafiosUsuarios: [],
@@ -959,9 +965,8 @@ let dados = { // Inicializando dados se não definido externamente
 }; // Ajuste conforme necessário
 
 console.log("_____dados", dados);
-
+*/
 // main.js - Configuração STUN com serviços gratuitos (apenas STUNs públicos gratuitos)
-
 const pcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -998,9 +1003,8 @@ function initChatUI() {
   remoteContainer = document.getElementById('remoteContainer'); // opcional container para múltiplos remotos
   roomsSelect = document.getElementById('roomsSelect'); // Novo: select para salas
   joinRoomButton = document.getElementById('joinRoomButton'); // Novo: botão para join sala
-  createRoomButton = document.getElementById('createRoomButton'); // Novo botão para criar sala
 
-  console.log('[UI] Inicializando elementos UI:', { startButton, callButton, hangupButton, createRoomButton }); // Log adicionado para depurar UI
+  console.log('[UI] Inicializando elementos UI:', { startButton, callButton, hangupButton }); // Log adicionado para depurar UI
 
   // Protege caso elementos não existam (safety)
   if (startButton) startButton.addEventListener('click', start);
@@ -1009,9 +1013,8 @@ function initChatUI() {
   if (sendButton) sendButton.addEventListener('click', sendMessage);
   if (sendCustomDataButton) sendCustomDataButton.addEventListener('click', sendCustomData);
 
-  // Novo: listeners para seleção de sala e criação
+  // Novo: listeners para seleção de sala
   if (joinRoomButton) joinRoomButton.addEventListener('click', joinSelectedRoom);
-  if (createRoomButton) createRoomButton.addEventListener('click', handleCreateRoom);
 
   // inicial state
   if (startButton) startButton.disabled = false;
@@ -1329,7 +1332,6 @@ async function start() {
     if (startButton) startButton.disabled = false;
   }
 }
-
 // Quando usuário quer iniciar ofertas para todos (útil se já houver peers)
 async function callAll() {
   console.log('[CALL] Iniciando callAll para peers:', Object.keys(peers)); // Log adicionado
@@ -1486,7 +1488,6 @@ function syncDataToPeers() {
   sendDataChannelObjectToAll(syncObject);
   logMessage(`[LOG] Dados do Jogo ${gameId} sincronizados com peers.`);
 }
-
 /* ---------------------------
    NOVAS FUNÇÕES PARA SALAS
    --------------------------- */
@@ -1525,42 +1526,37 @@ function joinSelectedRoom() {
   // syncDataToPeers(); // Opcional
 }
 
-// Nova função para lidar com criação de sala
-function handleCreateRoom() {
-  // Obter nome do jogo (assumindo que existe uma variável ou função para isso, ex: dados.jogos[0].nome ou prompt para input)
-  const gameName = prompt('Digite o nome do jogo para gerar o nome da sala:');
-  if (!gameName) return;
-
-  // Gerar nome da sala baseado no jogo (ex: "jogo-nome-room")
-  let proposedRoomName = `${gameName.toLowerCase().replace(/\s/g, '-')}-room`;
-
-  // Verificar se a sala já existe (emitir para servidor checar)
-  signaling.emit('check_room_exists', proposedRoomName, (exists) => {
-    if (exists) {
-      alert(`Sala "${proposedRoomName}" já existe. Tente outro nome.`);
-      handleCreateRoom(); // Recursivo para tentar novamente
-    } else {
-      // Perguntar ao usuário se quer criar ou mudar
-      const confirmCreate = confirm(`Sala "${proposedRoomName}" não existe. Deseja criar esta sala? (Sim para criar, Não para mudar o nome)`);
-      if (confirmCreate) {
-        // Criar sala e torná-la disponível
-        signaling.emit('create_room', proposedRoomName);
-        currentGameId = proposedRoomName; // Atualizar currentGameId
-        signaling.emit('join_room', proposedRoomName); // Join na nova sala
-        logMessage(`[SINALIZAÇÃO] Sala "${proposedRoomName}" criada e entrada.`);
-        loadRoomsList(); // Atualizar lista de salas
-      } else {
-        // Mudar nome: recursivo
-        handleCreateRoom();
-      }
-    }
-  });
-}
-
 /* ---------------------------
    FUNÇÕES DO MODAL (mantidas/adaptadas)
    --------------------------- */
-function abrirChatModal() {
+
+function fecharChatModal() {
+  if (chatModalElement && chatModalAberto) {
+    // fecha conexões abertas somente do modal (opcional)
+    // disconnectModalSocket(); // se você tiver lógica separada
+
+    // remove modal
+    document.body.removeChild(chatModalElement);
+    chatModalElement = null;
+    chatModalAberto = false;
+    console.log('[MODAL] Modal de chat fechado'); // Log adicionado
+    // NOTA: não desconectamos peers automaticamente, deixamos o usuário hangupAll() manualmente ou ao sair da sala
+  }
+}
+
+/* ---------------------------
+   UTILITÁRIAS
+   --------------------------- */
+function getCurrentGameId() {
+  const id = window.salaAtual || (dados.jogos && dados.jogos[0] && dados.jogos[0].id) || 'default_room'; // Fallback para teste
+  console.log('[GAME] Current Game ID details:', { salaAtual: window.salaAtual, jogos: dados.jogos, id });
+  return id;
+}
+
+// Se desejar abrir o modal automaticamente:
+ // abrirChatModal();
+
+   function abrirChatModal() {
   if (chatModalAberto) return;
 
   chatModalElement = document.createElement('div');
@@ -1589,7 +1585,6 @@ function abrirChatModal() {
         <label for="roomsSelect">Salas disponíveis:</label>
         <select id="roomsSelect"></select>
         <button id="joinRoomButton">Entrar na Sala</button>
-        <button id="createRoomButton">Criar Nova Sala</button>
       </div>
       <div id="video-streams">
         <audio id="localVideo" playsinline autoplay muted class="video-hidden"></audio>
@@ -1631,32 +1626,6 @@ function abrirChatModal() {
     if (e.target === chatModalElement) fecharChatModal();
   };
 }
-
-function fecharChatModal() {
-  if (chatModalElement && chatModalAberto) {
-    // fecha conexões abertas somente do modal (opcional)
-    // disconnectModalSocket(); // se você tiver lógica separada
-
-    // remove modal
-    document.body.removeChild(chatModalElement);
-    chatModalElement = null;
-    chatModalAberto = false;
-    // NOTA: não desconectamos peers automaticamente, deixamos o usuário hangupAll() manualmente ou ao sair da sala
-  }
-}
-
-/* ---------------------------
-   UTILITÁRIAS
-   --------------------------- */
-function getCurrentGameId() {
-  const id = window.salaAtual || (dados.jogos && dados.jogos[0] && dados.jogos[0].id) || 'default_room'; // Fallback para teste
-  console.log('[GAME] Current Game ID details:', { salaAtual: window.salaAtual, jogos: dados.jogos, id });
-  return id;
-}
-
-// Se desejar abrir o modal automaticamente:
- // abrirChatModal();
-
 /* ---------------------------
    FIM DO ARQUIVO
    --------------------------- */
