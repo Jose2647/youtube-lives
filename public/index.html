@@ -85,29 +85,174 @@
 
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js">
-</script>
+
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script
+>
+//src="js/Variaveis.js" 
+  const signaling = io(); // socket.io client
+let localStream = null;
+//let peers = {}; // { [peerId]: { connection: RTCPeerConnection, dataChannel: RTCDataChannel } }
+let currentGameId = null;
+//let chatModalElement = null;
+//let chatModalAberto = false;
+
+// Guardar referências de UI somente quando o modal for aberto
+let startButton, callButton, hangupButton, messageInput, sendButton, sendCustomDataButton, messagesDiv, localVideo, remoteContainer;
+
+
+let jogoTemporarioParaCompartilhar = null;
+let acoesEstadioVisiveis = true;
+// Variável global para instância atual
+let modalChatAtual = null;
+    /*
+    
+// Variáveis de controle do modal (para simulação)
+    // === CONFIGURAÇÕES ===
+   // let socket = null;
+    let salaAtual = null;
+    let salasDisponiveis = {};
+    let usuariosNaSala = new Set();
+    let peers = {};
+    let meuStream = null;
+    let voiceEnabled = false;
+    let abaAtual = 'salas';
+    let socketApostas = null;
+    let intervalEncerramentos = null;
+    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
+*/
+// === CONEXÕES WEBRTC ===
+let jogoCopiado = null;
+let estadioCopiado = null; // Armazena o estádio copiado
+let timeCopiado = null;
+let liveCopiada = null;
+let cardCopiado = null;
+let divCopiada = null;
+let scrollContainerCopiado = null;
+let iframerCopiado = null;
+let toggleStatesLive = {};
+let toggleStatesScrollContainer = {};
+let toggleStatesDiv = {};
+let toggleStatesIframer = {};
+
+const dataChannels = {};
+/*
+let peerConnections = {};
+let peerConnection = null;
+let localStream = null;
+let dataChannel = null;
+*/
+let usuarioLogado = null;
+let streamerLogado = null;
+let notificacoes = [];
+let socket = null;
+let eventos = [];
+let jogoSelecionadoId = null;
+let estadioSelecionadoId = null;
+let timeSelecionadoId = null;
+let liveSelecionadoId = null;
+let audioContext = null;
+let audioAnalyser = null;
+let audioParticipants = new Map();
+let salaAtual = null;
+    let salasDisponiveis = {};
+    let usuariosNaSala = new Set();
+    let peers = {};
+    let meuStream = null;
+    let voiceEnabled = false;
+    let abaAtual = 'salas';
+    let socketApostas = null;
+    let intervalEncerramentos = null;
+    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
+     const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
+
+    const configLives = {
+        maxIframes: 8,
+        maxCardsUsuario: 6,
+        maxDivsPorLive: 4,
+        maxCardsPorDiv: 8,
+        iframeWidth: "180px",
+        iframeHeight: "200px",
+        autoplay: 1,
+        mute: 1,
+        enablejsapi: 1,
+        tamanhosDisponiveis: {
+            pequeno: { width: "100px", height: "161px", label: "Pequeno" },
+            medio: { width: "150px", height: "241px", label: "Médio" },
+            grande: { width: "200px", height: "321px", label: "Grande" },
+            extraGrande: { width: "350px", height: "401px", label: "Extra Grande" }
+        },
+        tamanhosCards: {
+            pequeno: { width: "135px", height: "135px", label: "Pequeno" },
+            medio: { width: "180px", height: "180px", label: "Médio" },
+            grande: { width: "225px", height: "225px", label: "Grande" },
+            extraGrande: { width: "270px", height: "270px", label: "Extra Grande" }
+        },
+        alturasDiv: {
+            pequeno: { height: "1200px", label: "Pequeno" },
+            medio: { height: "1200px", label: "Médio" },
+            grande: { height: "1200px", label: "Grande" },
+            extraGrande: { height: "1200px", label: "Extra Grande" }
+        }
+    };
+      window.configLives = configLives;
+
+      const imagensPadrao = {
+          jogo: "https://via.placeholder.com/150/4CAF50/white?text=JOGO",
+          estadio: "https://via.placeholder.com/150/2196F3/white?text=ESTÁDIO",
+          time: "https://via.placeholder.com/150/FF9800/white?text=TIME",
+          live: "https://via.placeholder.com/150/9C27B0/white?text=LIVE",
+          streamer: "https://via.placeholder.com/150/607D8B/white?text=STREAMER",
+          usuario: "https://via.placeholder.com/150/795548/white?text=USUÁRIO"
+      };
+
+
+
+// variaveis-globais.js
+
+
+let dados = {
+    jogos: [],
+    usuarios: [],
+    transacoes: [],
+    apostasUsuarios: [],
+    desafiosUsuarios: [],
+    chats: [] // Store chats per cardId
+};
+
+
+
 
   
+        // === CONFIG (AJUSTE AQUI) ===
+   const API_BASE = 'http://localhost:3000';  // Seu backend URL
+    const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
+    /*
+const API_BASE = 'https://youtube-lives.onrender.com';
+    const SOCKET_SERVER = 'https://youtube-lives.onrender.com';  // Mesmo do chat, se compartilhado
+    const SIGNALING_SERVER = 'wss://youtube-lives.onrender.com';
+    
+    */
+    
+    
+    /*
+ * Adaptado para Voice + Text Chat (RTCDataChannel) e Envio de Objeto Customizado
+ */
+ 
+ // main.js - Logo após carregar os dados (carregarDadosBackend())
 
-  
-<script >
-  
-  // ===== INICIALIZAÇÃO GLOBAL SEGURA =====
-if (!window.AppState) {
-    window.AppState = {};
-}
-if (!window.AppState.socket) {
-    window.AppState.socket = null;
-}
-if (!window.salasDisponiveis) {
-    window.salasDisponiveis = {};
-}
-if (typeof window.salaAtual === 'undefined') {
-    window.salaAtual = null;
+let currentSelectedGameId = null;
+
+function getCurrentGameId() {
+    // Se o array de jogos existe e não está vazio, usa o ID do primeiro jogo.
+    // Em uma aplicação real, você pegaria isso da URL ou de uma seleção do usuário.
+    return dados.jogos && dados.jogos.length > 0 ? dados.jogos[0].id : 'default_lobby';
 }
 
-  
+
+
+/*
 
 // variaveis-globais.js
 let dados = {
@@ -118,164 +263,18 @@ let dados = {
     desafiosUsuarios: [],
     chats: [] // Store chats per cardId
 };
-
-let jogoTemporarioParaCompartilhar = null;
-let acoesEstadioVisiveis = true;
-// Variável global para instância atual
-let modalChatAtual = null;
-
-// === CONEXÕES WEBRTC ===
-let jogoCopiado = null;
-let estadioCopiado = null; // Armazena o estádio copiado
-let timeCopiado = null;
-let liveCopiada = null;
-let cardCopiado = null;
-let divCopiada = null;
-let scrollContainerCopiado = null;
-let iframerCopiado = null;
-
-
-
-
-let toggleStatesLive = {};
-let toggleStatesScrollContainer = {};
-let toggleStatesDiv = {};
-let toggleStatesIframer = {};
-// Criar funções de toggle para diferentes tipos
-//const toggleTimeBotoes = createToggleFunction('time');
-//const toggleEstadioBotoes = createToggleFunction('estadio');
-//const toggleScrollContainerBotoes = createToggleFunction('scrollContainer');
-
-
-
-// ESTADO GLOBAL PARA DIVS
-const dataChannels = {};
-
-let peerConnections = {};
-let usuarioLogado = null;
-let streamerLogado = null;
-let notificacoes = [];
-let socket = null;
-let eventos = [];
-let jogoSelecionadoId = null;
-let estadioSelecionadoId = null;
-let timeSelecionadoId = null;
-let liveSelecionadoId = null;
-
-let peerConnection = null;
-let localStream = null;
-let dataChannel = null;
-let audioContext = null;
-let audioAnalyser = null;
-let audioParticipants = new Map();
-
-const configLives = {
-    maxIframes: 8,
-    maxCardsUsuario: 6,
-    maxDivsPorLive: 4,
-    maxCardsPorDiv: 8,
-    iframeWidth: "180px",
-    iframeHeight: "200px",
-    autoplay: 1,
-    mute: 1,
-    enablejsapi: 1,
-    tamanhosDisponiveis: {
-        pequeno: { width: "100px", height: "161px", label: "Pequeno" },
-        medio: { width: "150px", height: "241px", label: "Médio" },
-        grande: { width: "200px", height: "321px", label: "Grande" },
-        extraGrande: { width: "350px", height: "401px", label: "Extra Grande" }
-    },
-    tamanhosCards: {
-        pequeno: { width: "135px", height: "135px", label: "Pequeno" },
-        medio: { width: "180px", height: "180px", label: "Médio" },
-        grande: { width: "225px", height: "225px", label: "Grande" },
-        extraGrande: { width: "270px", height: "270px", label: "Extra Grande" }
-    },
-    alturasDiv: {
-        pequeno: { height: "1200px", label: "Pequeno" },
-        medio: { height: "1200px", label: "Médio" },
-        grande: { height: "1200px", label: "Grande" },
-        extraGrande: { height: "1200px", label: "Extra Grande" }
-    }
-};
-
-window.configLives = configLives;
-
-const imagensPadrao = {
-    jogo: "https://via.placeholder.com/150/4CAF50/white?text=JOGO",
-    estadio: "https://via.placeholder.com/150/2196F3/white?text=ESTÁDIO",
-    time: "https://via.placeholder.com/150/FF9800/white?text=TIME",
-    live: "https://via.placeholder.com/150/9C27B0/white?text=LIVE",
-    streamer: "https://via.placeholder.com/150/607D8B/white?text=STREAMER",
-    usuario: "https://via.placeholder.com/150/795548/white?text=USUÁRIO"
-};
-
-function obterImagem(entidade, imagemCustom) {
-    return imagemCustom && imagemCustom !== '' ? imagemCustom : imagensPadrao[entidade];
-}
-
-
-
-
-
-
-
-
-
-
-
-
-// Variáveis de controle do modal (para simulação)
-
-
-  
-    /*
-   // let socket = null;
-    let salaAtual = null;
-    let salasDisponiveis = {};
-    let usuariosNaSala = new Set();
-    let peers = {};
-    let meuStream = null;
-    let voiceEnabled = false;
-    let abaAtual = 'salas';
-        // === CONFIG (AJUSTE AQUI) ===
-  //  const API_BASE = 'http://localhost:3000/api';  // Seu backend URL
-    const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
-    const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
-
-    // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
-    let socketApostas = null;
-    let intervalEncerramentos = null;
-    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
 */
-
-    
-    
-    const API_BASE = 'https://youtube-lives.onrender.com';
-    // === CONFIGURAÇÕES ===
-    const SIGNALING_SERVER = 'wss://youtube-lives.onrender.com';
-   // let socket = null;
-    let salaAtual = null;
-    let salasDisponiveis = {};
-    let usuariosNaSala = new Set();
-    let peers = {};
-    let meuStream = null;
-    let voiceEnabled = false;
-    let abaAtual = 'salas';
-    
-    
+    /*
         // === CONFIG (AJUSTE AQUI) ===
-  //  const API_BASE = 'https://youtube-lives.onrender.com/api';  // Seu backend URL
+   const API_BASE = 'http://localhost:3000';  // Seu backend URL
+    const SOCKET_SERVER = 'http://localhost:3000';  // Mesmo do chat, se compartilhado
+const API_BASE = 'https://youtube-lives.onrender.com';
     const SOCKET_SERVER = 'https://youtube-lives.onrender.com';  // Mesmo do chat, se compartilhado
-    const TOKEN_JWT = localStorage.getItem('jwtToken') || '';  // Do login existente
+    const SIGNALING_SERVER = 'wss://youtube-lives.onrender.com';
+    
+    */
 
-    // === GLOBAIS ISOLADAS (NÃO TOCA NO CHAT) ===
-    let socketApostas = null;
-    let intervalEncerramentos = null;
-    const ROOMS_APOSTAS = {};  // { cardId: roomName } para tracking
-    
-    
-// Função para buscar dados do backend
+  // Função para buscar dados do backend
 async function buscarDadosBackend(endpoint) {
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
@@ -290,7 +289,129 @@ async function buscarDadosBackend(endpoint) {
         return null;
     }
 }
+// Função principal para carregar dados
+async function carregarDadosBackend() {
+    try {
+        //console.log('Carregando dados do backend...');
+        
+        const [
+            usuariosBackend, 
+            apostasBackend, 
+            desafiosBackend, 
+            chatsBackend, 
+            jogosBackend
+        ] = await Promise.all([
+            buscarDadosBackend('/api/users'),
+            buscarDadosBackend('/api/apostas'),
+            buscarDadosBackend('/api/desafios'),
+            buscarDadosBackend('/api/chats'),
+            buscarDadosBackend('/api/jogos') // ou '/api/jogos-completos' se preferir
+        ]);
 
+        // Atribuir dados diretamente
+        Object.assign(dados, {
+            usuarios: usuariosBackend || [],
+            apostasUsuarios: apostasBackend || [],
+            desafiosUsuarios: desafiosBackend || [],
+            chats: chatsBackend || [],
+            jogos: jogosBackend || []
+        });
+
+        //console.log('Dados carregados:');
+        //console.log(`Usuários: ${dados.usuarios.length}`);
+      //  console.log(`Apostas: ${dados.apostasUsuarios.length}`);
+        //console.log(`Desafios: ${dados.desafiosUsuarios.length}`);
+        //console.log(`Chats: ${dados.chats.length}`);
+        console.log(`Jogos: ${dados.jogos.length}`);
+        
+        return true;
+        
+    } catch (error) {
+        console.error('Erro no carregamento:', error);
+        return false;
+    }
+}
+function salvarDados() {
+    localStorage.setItem('sistemaTransmissao', JSON.stringify(dados));
+    console.log("________dados",dados)
+   // localStorage.setItem('sistemaNotificacoes', JSON.stringify(notificacoes));
+   // atualizarIndicadoresApostas()
+}
+
+// Função inicializadora
+async function inicializar() {
+    console.log('Iniciando sistema...');
+    
+    const sucesso = await carregarDadosBackend();
+    
+    if (sucesso) {
+      salvarDados()
+     //   carregarJogos(); // sua função que renderiza a UI
+        console.log('Sistema inicializado com sucesso');
+    } else {
+        document.getElementById('app').innerHTML = `
+            <div class="erro">
+                <h2>Erro ao conectar com o servidor</h2>
+                <p>Verifique se o backend está rodando em <code>https://youtube-lives.onrender.com</code></p>
+                <button onclick="location.reload()">Tentar novamente</button>
+            </div>
+        `;
+    }
+}
+
+// Iniciar automaticamente
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializar);
+} else {
+    inicializar();
+}
+
+
+let modalActiveRooms = new Map();
+let chatModalAberto = false;
+let chatModalElement = null;
+// P2PChatHybrid.js
+let modalSocket = null;
+//let peerConnection = null;
+//let dataChannel = null;
+let remoteSocketId = null;
+
+let modalUserName = 'Usuario';
+let modalCurrentRoom = '';
+let modalP2PMode = false; // false = modo servidor, true = modo P2P
+// Funções para exibir jogos
+
+  
+  
+
+
+
+//src="js/atualizacoes.js"
+    // Função para buscar dados do backend
+  /*
+  
+
+
+function salvarDados() {
+    localStorage.setItem('sistemaTransmissao', JSON.stringify(dados));
+    localStorage.setItem('sistemaNotificacoes', JSON.stringify(notificacoes));
+    atualizarIndicadoresApostas()
+}
+*/
+async function buscarDadosBackend(endpoint) {
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`);
+        if (!response.ok) throw new Error(`Erro ${response.status}`);
+        
+        const dadosRes = await response.json();
+        //console.log(`${endpoint}:`, Array.isArray(dadosRes) ? dadosRes.length : 1, 'itens');
+        return dadosRes;
+        
+    } catch (error) {
+        console.error(`${endpoint}:`, error.message);
+        return null;
+    }
+}
 // Função principal para carregar dados
 async function carregarDadosBackend() {
     try {
@@ -333,6 +454,919 @@ async function carregarDadosBackend() {
         return false;
     }
 }
+function obterImagem(entidade, imagemCustom) {
+    return imagemCustom && imagemCustom !== '' ? imagemCustom : imagensPadrao[entidade];
+}
+function salvarEAtualizar(jogoId, estadioId, timeId) {
+    salvarDados();
+    carregarLivesDoTime(jogoId, estadioId, timeId);
+}
+function atualizarMerito(usuario, tipo, positivo) {
+    let pontos = 0;
+    
+    switch(tipo) {
+        case 'desafio_criado':
+            pontos = positivo ? 10 : -5;
+            break;
+        case 'desafio_cumprido':
+            pontos = positivo ? 20 : -15;
+            break;
+        case 'pagamento_realizado':
+            pontos = positivo ? 15 : 0;
+            break;
+        case 'pagamento_pendente':
+            pontos = positivo ? 0 : -20;
+            break;
+        case 'aposta_ganha':
+            pontos = positivo ? 25 : 0;
+            break;
+        case 'aposta_perdida':
+            pontos = positivo ? 0 : -10;
+            break;
+        default:
+            pontos = positivo ? 5 : -5;
+    }
+    
+    usuario.merito += pontos;
+    return pontos;
+}
+function atualizarIndicadoresApostas() {
+    const videoInfos = document.querySelectorAll('.video-info');
+
+    videoInfos.forEach(videoInfo => {
+        const cardId = gerarCardId(videoInfo);
+        const salaApostas = dados.apostasUsuarios.find(s => s.cardId === cardId);
+
+        const botaoApostas = videoInfo.querySelector('.botao-apostas-custom');
+        if (botaoApostas) {
+            const temApostasAbertas = salaApostas && salaApostas.apostas.some(a => a.status === 'aberta');
+            const temApostasEncerradas = salaApostas && salaApostas.apostas.some(a => a.status === 'encerrada');
+
+            if (temApostasAbertas || temApostasEncerradas) {
+                botaoApostas.classList.add('with-red-dot');
+            } else {
+                botaoApostas.classList.remove('with-red-dot');
+            }
+        }
+    });
+}
+// ===== ATUALIZAÇÃO NA EXIBIÇÃO DAS APOSTAS =====
+function atualizarConteudoModalApostas(content, cardId, sala, videoInfo) {
+    // Filtrar apostas por mérito apenas se usuário estiver logado
+    const apostasFiltradas = usuarioLogado ? 
+        sala.apostas.filter(aposta => {
+            const criador = dados.usuarios.find(u => u.nome === aposta.criador);
+            return criador && criador.merito === usuarioLogado.merito;
+        }) : 
+        sala.apostas; // Usuários não logados veem todas as apostas
+    
+    const chat = dados.chats.find(c => c.cardId === cardId) || { messages: [], voiceParticipants: [] };
+    const hasUnreadMessages = chat.messages.some(m => !m.readBy?.includes(usuarioLogado?.nome));
+    const hasVoiceParticipants = chat.voiceParticipants?.length > 0;
+
+    content.innerHTML = `
+        <div class="modal-header">
+            <h3>💰 Sala de Apostas</h3>
+            <button class="close-button" aria-label="Fechar modal">X</button>
+        </div>
+        ${usuarioLogado ? `
+            <div class="user-info">
+                <div class="user-details">
+                    <span>👤 ${usuarioLogado.nome}</span>
+                    <span>Email: ${usuarioLogado.email}</span>
+                    <span>Pontos: ${usuarioLogado.merito}</span>
+                    ${usuarioLogado.contaBancaria ? `<span>Conta: ${usuarioLogado.contaBancaria}</span>` : ''}
+                    <span>Chave Pix: ${usuarioLogado.chavePix}</span>
+                </div>
+                <button class="logout-button" onclick="logout()">Sair</button>
+            </div>
+        ` : `
+            <div class="user-info">
+                <div class="user-details">
+                    <span>👤 Visitante</span>
+                    <span>💡 Você pode ver apostas e participar de apostas de até 50 pontos sem login</span>
+                    <button class="login-button" onclick="abrirFormularioLoginApostas('${cardId}')">Fazer Login</button>
+                </div>
+            </div>
+        `}
+        <div class="apostas-options">
+            ${usuarioLogado ? `
+                <button class="create-bet-button" onclick="abrirFormularioCriarAposta('${cardId}')">🎯 Criar Nova Aposta</button>
+            ` : `
+                <button class="create-bet-button disabled" onclick="mostrarNotificacao('Faça login para criar apostas', 'erro')">🎯 Criar Nova Aposta</button>
+            `}
+            <button class="view-bets-button ${apostasFiltradas.length > 0 ? 'with-red-dot' : ''}" onclick="mostrarApostasExistentes('${cardId}')">📋 Ver Apostas (${apostasFiltradas.length})</button>
+            ${usuarioLogado ? `
+                <button class="open-chat-button ${hasUnreadMessages || hasVoiceParticipants ? 'with-red-dot' : ''}" onclick="abrirChat('${cardId}')">💬 Abrir Chat</button>
+            ` : ''}
+        </div>
+        <div class="apostas-list hidden" id="apostas-list-${cardId}">
+            <h4>🎲 Apostas Ativas (${apostasFiltradas.length})</h4>
+            ${apostasFiltradas.length === 0 ?
+                '<p class="no-apostas">Nenhuma aposta ativa' + (usuarioLogado ? ' com seu mérito' : '') + '</p>' :
+                apostasFiltradas.map(aposta => {
+                    const participacao = usuarioLogado ? aposta.participantes.find(p => p.usuario === usuarioLogado.nome) : null;
+                    const isParticipating = !!participacao;
+                    const winner = aposta.status === 'encerrada' ? aposta.participantes.find(p => p.opcao === aposta.opcaoVencedora) : null;
+                    const winnerUser = winner ? dados.usuarios.find(u => u.nome === winner.usuario) : null;
+                    const isWinner = winner && winner.usuario === usuarioLogado?.nome;
+                    const isLoser = isParticipating && !isWinner && aposta.status === 'encerrada';
+                    const comprovanteEnviado = aposta.comprovantes?.some(c => c.usuario === usuarioLogado?.nome);
+
+                    let resultado = '';
+                    if (aposta.status === 'encerrada' && isParticipating) {
+                        resultado = isWinner ?
+                            '<p class="resultado-ganhou">🎉 Você ganhou!</p>' :
+                            `<p class="resultado-perdeu">😔 Você perdeu. Envie ${aposta.valor} pontos via Pix para ${winnerUser?.chavePix || 'indefinido'} (vencedor: ${winner?.usuario || 'indefinido'}).</p>`;
+                    }
+
+                    return `
+                        <div class="aposta-card">
+                            <div class="aposta-info">
+                                <strong>${aposta.titulo}</strong>
+                                ${isParticipating ? `<p class="participacao">✅ Você está participando (Opção: ${participacao.opcao})</p>` : ''}
+                                ${aposta.descricao ? `<p class="aposta-descricao">${aposta.descricao}</p>` : ''}
+                                ${aposta.dataEncerramento ? `<small class="aposta-encerramento">Encerra em: ${new Date(aposta.dataEncerramento).toLocaleString()}</small>` : ''}
+                                <p>Opções: ${aposta.opcoes.join(', ')}</p>
+                                <p>Valor: ${aposta.valor} pontos</p>
+                                <p>Participantes: ${aposta.participantes.length}</p>
+                                <small>Criado por: ${aposta.criador} em ${aposta.dataCriacao}</small>
+                                ${resultado}
+                                ${aposta.status === 'encerrada' && winnerUser ? `<p>Chave Pix do vencedor: ${winnerUser.chavePix}</p>` : ''}
+                            </div>
+                            <div class="aposta-actions">
+                                ${aposta.status === "aberta" ? `
+                                    ${!usuarioLogado && aposta.valor <= 50 ? `
+                                        <button class="participar-button" onclick="abrirFormularioParticiparApostaVisitante('${cardId}', ${aposta.id})">Participar</button>
+                                    ` : usuarioLogado ? `
+                                        <button class="participar-button" onclick="abrirFormularioParticiparAposta('${cardId}', ${aposta.id})">Participar</button>
+                                    ` : `
+                                        <button class="participar-button disabled" onclick="mostrarNotificacao('Faça login para apostar mais de 50 pontos', 'erro')">Participar</button>
+                                    `}
+                                    ${aposta.criador === usuarioLogado?.nome ? `
+                                        <button class="encerrar-button" onclick="abrirFormularioEncerrarAposta('${cardId}', ${aposta.id})">Encerrar</button>
+                                    ` : ''}
+                                ` : `
+                                    <p class="encerrada">❌ Encerrada</p>
+                                    <p>Vencedor: ${aposta.opcaoVencedora || 'Não definido'}</p>
+                                    ${isLoser && !comprovanteEnviado ? `
+                                        <div class="comprovante-form">
+                                            <label for="comprovante-${aposta.id}">Comprovante de Pagamento:</label>
+                                            <input type="text" id="comprovante-${aposta.id}" placeholder="Insira o ID da transação">
+                                            <button onclick="enviarComprovantePagamento('${cardId}', ${aposta.id})">Enviar Comprovante</button>
+                                        </div>
+                                    ` : ''}
+                                    ${comprovanteEnviado ? `<p>Comprovante enviado: ${aposta.comprovantes.find(c => c.usuario === usuarioLogado.nome)?.comprovante}</p>` : ''}
+                                    ${(aposta.criador === usuarioLogado?.nome || isWinner) ? `
+                                        <div class="comprovantes-list">
+                                            <h5>Comprovantes Recebidos:</h5>
+                                            ${aposta.comprovantes?.length > 0 ? aposta.comprovantes.map(c => `
+                                                <p>${c.usuario}: ${c.comprovante} (${c.status}) - ${c.data}</p>
+                                            `).join('') : '<p>Nenhum comprovante recebido.</p>'}
+                                        </div>
+                                    ` : ''}
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('')
+            }
+        </div>
+    `;
+    
+    content.querySelector('.close-button').addEventListener('click', () => {
+        content.closest('.modal-apostas').remove();
+    });
+    console.log(`Modal rendered for cardId=${cardId}, apostas count=${apostasFiltradas.length}`);
+}
+function atualizarIndicadoresDesafios() {
+    const videoInfos = document.querySelectorAll('.video-info');
+
+    videoInfos.forEach(videoInfo => {
+        const cardId = gerarCardId(videoInfo);
+        const salaDesafios = dados.desafiosUsuarios.find(s => s.cardId === cardId);
+
+        const botaoDesafios = videoInfo.querySelector('.botao-desafios-custom');
+        if (botaoDesafios) {
+            const temDesafiosAbertos = salaDesafios && salaDesafios.desafios.some(d => d.status === 'aberto');
+            const temDesafiosEncerrados = salaDesafios && salaDesafios.desafios.some(d => d.status === 'encerrado');
+
+            if (temDesafiosAbertos || temDesafiosEncerrados) {
+                botaoDesafios.classList.add('with-red-dot');
+            } else {
+                botaoDesafios.classList.remove('with-red-dot');
+            }
+        }
+    });
+}
+function recarregarListaEstadiosAtual() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const jogoId = parseInt(urlParams.get('jogo'));
+
+    if (jogoId && document.getElementById('lista-estadios').innerHTML.includes('Estádios - ')) {
+        carregarEstadiosDoJogo(jogoId);
+    } else {
+        carregarEstadios();
+    }
+}
+function recarregarListaTimesAtual() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const jogoId = parseInt(urlParams.get('jogo'));
+    const estadioId = parseInt(urlParams.get('estadio'));
+
+    if (jogoId && estadioId && document.getElementById('lista-times').innerHTML.includes('Times - ')) {
+        carregarTimesDoEstadio(jogoId, estadioId);
+    } else {
+        carregarTimes();
+    }
+}
+
+// Função para alterar imagem do time
+function alterarImagemTime(jogoId, estadioId, timeId) {
+    const jogo = dados.jogos.find(j => j.id === jogoId);
+    if (!jogo) return;
+    
+    const estadio = jogo.estadios.find(e => e.id === estadioId);
+    if (!estadio) return;
+    
+    const time = estadio.times.find(t => t.id === timeId);
+    if (!time) return;
+    
+    const novaImagem = prompt("URL da nova imagem (deixe em branco para padrão):", time.imagem);
+    if (novaImagem !== null) {
+        time.imagem = novaImagem;
+        carregarTimesDoEstadio(jogoId, estadioId);
+        alert("Imagem atualizada!");
+    }
+}
+function atualizarInterfaceLogin() {
+    atualizarMenuPerfil();
+    
+    const floatingMenu = document.getElementById('loginFloating');
+    const overlay = document.getElementById('overlay');
+    if (floatingMenu) floatingMenu.classList.remove('show');
+    if (overlay) overlay.classList.remove('show');
+}
+function atualizarMenuPerfil() {
+    const floatingMenu = document.getElementById('loginFloating');
+    const profileIcon = document.getElementById('profileIcon');
+    
+    if (!floatingMenu || !profileIcon) return;
+    
+    if (usuarioLogado || streamerLogado) {
+        const usuario = usuarioLogado || streamerLogado;
+        const tipo = usuarioLogado ? '👤 Usuário' : '🎥 Streamer';
+        
+        profileIcon.textContent = usuarioLogado ? '👤' : '🎥';
+        profileIcon.classList.add('logged-in');
+        
+        floatingMenu.innerHTML = `
+            <div class="user-info">
+                <p class="user-name">${usuario.nome}</p>
+                <p class="user-merito">${tipo} | Mérito: ${usuario.merito}</p>
+            </div>
+            <div class="user-actions">
+                <button class="btn-profile" onclick="verPerfilCompleto(); toggleProfileMenu()">Ver Perfil</button>
+                <button class="btn-pix" onclick="configurarChavePix(); toggleProfileMenu()">Configurar PIX</button>
+                <button class="btn-logout" onclick="logout(); toggleProfileMenu()">Sair</button>
+            </div>
+        `;
+    } else {
+        profileIcon.textContent = '👤';
+        profileIcon.classList.remove('logged-in');
+        
+        floatingMenu.innerHTML = `
+            <div class="user-actions">
+                <button class="btn-login" onclick="fazerLogin(); toggleProfileMenu()">Fazer Login</button>
+            </div>
+        `;
+    }
+}
+function atualizarMerito(usuario, tipoAcao, sucesso) {
+    let pontos = 0;
+    
+    switch(tipoAcao) {
+        case 'desafio_cumprido':
+            pontos = sucesso ? 50 : -30;
+            if (sucesso) usuario.desafiosCumpridos++;
+            else usuario.desafiosFalhados++;
+            break;
+            
+        case 'pagamento_realizado':
+            pontos = 100;
+            usuario.pagamentosRealizados++;
+            break;
+            
+        case 'pagamento_pendente':
+            pontos = -150; // Penalidade alta por não pagar
+            usuario.pagamentosPendentes++;
+            break;
+            
+        case 'aposta_ganha':
+            pontos = 25;
+            break;
+            
+        case 'aposta_perdida':
+            pontos = -10;
+            break;
+            
+        case 'desafio_criado':
+            pontos = 5;
+            break;
+    }
+    
+    
+    // Supondo que 'usuario' é uma referência ao objeto dentro de dados.usuarios
+    // Após a modificação local do estado global 'dados', chame a sincronização:
+    if (typeof syncDataToPeers === 'function') {
+        // A função syncDataToPeers() irá:
+        // 1. Atualizar a versão do objeto dados.
+        // 2. Salvar o novo estado completo no localStorage.
+        // 3. Enviar o objeto completo (sync_data) via DataChannel.
+        syncDataToPeers(); 
+        console.log(`[ATUALIZAÇÃO] Mérito de ${usuario.id} alterado. Sincronização WRT disparada.`);
+    } else {
+        console.warn('Função syncDataToPeers não está disponível. Sincronização P2P falhou.');
+    }
+    
+    usuario.merito = Math.max(0, usuario.merito + pontos);
+    return pontos;
+}
+  
+  
+  
+
+
+  
+//src="js/main.js"
+  // main.js (integrado para múltiplos peers com áudio + chat P2P)
+
+/* ---------------------------
+   VARIÁVEIS GLOBAIS E ESTADO
+   --------------------------- */
+//console.log("_____dados", dados);
+
+
+
+/* ---------------------------
+   HELPERS UI: init UI quando modal aberto
+   --------------------------- */
+function initChatUI() {
+  // Evita inicializar duas vezes
+  if (!chatModalElement) return;
+
+  startButton = document.getElementById('startButton');
+  callButton = document.getElementById('callButton');
+  hangupButton = document.getElementById('hangupButton');
+  messageInput = document.getElementById('messageInput');
+  sendButton = document.getElementById('sendButton');
+  sendCustomDataButton = document.getElementById('sendCustomDataButton');
+  messagesDiv = document.getElementById('messages');
+  localVideo = document.getElementById('localVideo');
+  remoteContainer = document.getElementById('remoteContainer'); // opcional container para múltiplos remotos
+
+  // Protege caso elementos não existam (safety)
+  if (startButton) startButton.addEventListener('click', start);
+  if (callButton) callButton.addEventListener('click', callAll); // inicia offers para os peers existentes / novos
+  if (hangupButton) hangupButton.addEventListener('click', hangupAll);
+  if (sendButton) sendButton.addEventListener('click', sendMessage);
+  if (sendCustomDataButton) sendCustomDataButton.addEventListener('click', sendCustomData);
+
+  // inicial state
+  if (startButton) startButton.disabled = false;
+  if (callButton) callButton.disabled = true;
+  if (hangupButton) hangupButton.disabled = true;
+  if (messageInput) messageInput.disabled = true;
+  if (sendButton) sendButton.disabled = true;
+  if (sendCustomDataButton) sendCustomDataButton.disabled = true;
+
+  if (messageInput) {
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  }
+}
+
+/* ---------------------------
+   SINALIZAÇÃO / SALA
+   --------------------------- */
+signaling.on('connect', () => {
+  currentGameId = getCurrentGameId();
+  if (currentGameId) {
+    signaling.emit('________join_room', currentGameId);
+    logMessage(`[SINALIZAÇÃO] Entrou na sala: ${currentGameId}`);
+  }
+
+  // reenvia peers existentes (caso precise)
+});
+
+signaling.on('peer_joined', async ({ peerId }) => {
+  if (!peerId || peerId === signaling.id) return;
+  logMessage(`Peer entrou na sala: ${peerId}`);
+  // Cria conexão e (como ofertante) inicia offer para esse peer
+  await createPeerConnection(peerId, true);
+});
+
+signaling.on('peer_left', ({ peerId }) => {
+  if (!peerId) return;
+  logMessage(`Peer saiu: ${peerId}`);
+  closePeerConnection(peerId);
+});
+
+// Recebe sinais (ofertas, answers, ICE) retransmitidos pelo servidor.
+// O servidor adiciona `from` (ID do remetente).
+signaling.on('signal', async (message) => {
+  try {
+    const from = message.from;
+    if (!from || from === signaling.id) return; // ignora mensagens próprias
+
+    // Garante que exista um peer para esse `from`
+    if (!peers[from]) {
+      await createPeerConnection(from, false); // não ofertante (receiver)
+    }
+    const pc = peers[from].connection;
+
+    if (message.type === 'offer') {
+      logMessage(`Offer recebido de ${from}. Criando Answer...`);
+      await pc.setRemoteDescription(new RTCSessionDescription(message));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      signaling.emit('signal', { ...answer, from: signaling.id });
+    } else if (message.type === 'answer') {
+      logMessage(`Answer recebido de ${from}.`);
+      await pc.setRemoteDescription(new RTCSessionDescription(message));
+    } else if (message.type === 'candidate' && message.candidate) {
+      // candidate recebido
+      await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+    } else {
+      console.warn('Sinal desconhecido:', message);
+    }
+  } catch (err) {
+    console.error('Erro ao processar sinal:', err);
+  }
+});
+
+/* ---------------------------
+   CRIAR / FECHAR PEER CONNECTIONS
+   --------------------------- */
+async function createPeerConnection(peerId, isOfferer) {
+  if (peers[peerId]) {
+    console.warn('Peer já existe:', peerId);
+    return peers[peerId].connection;
+  }
+
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+
+  peers[peerId] = { connection: pc, dataChannel: null };
+
+  // ICE candidates -> enviar sinalização (servidor retransmitirá para a sala)
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      signaling.emit('signal', { type: 'candidate', candidate: event.candidate, from: signaling.id });
+    }
+  };
+
+  // Quando receber canal remoto (quando este peer não for offerer)
+  pc.ondatachannel = (event) => {
+    const channel = event.channel;
+    peers[peerId].dataChannel = channel;
+    setupDataChannel(peerId, channel, 'Remoto');
+  };
+
+  // Quando recebe track remoto (áudio dos peers)
+  pc.ontrack = (event) => {
+    // Cria/atualiza elemento de áudio para esse peer
+    let audioEl = document.getElementById(`audio_${peerId}`);
+    if (!audioEl) {
+      audioEl = document.createElement('audio');
+      audioEl.id = `audio_${peerId}`;
+      audioEl.autoplay = true;
+      audioEl.controls = false;
+      if (remoteContainer) remoteContainer.appendChild(audioEl);
+      else document.body.appendChild(audioEl);
+    }
+    audioEl.srcObject = event.streams[0];
+    logMessage(`Áudio remoto recebido de ${peerId}`);
+  };
+
+  // Adiciona tracks locais (se já houver stream)
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  // Se for o ofertante, cria data channel local e oferta
+  if (isOfferer) {
+    const channel = pc.createDataChannel('chatChannel', { reliable: true });
+    peers[peerId].dataChannel = channel;
+    setupDataChannel(peerId, channel, 'Local');
+
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      // envia offer via sinalização (servidor retransmite para os outros peers da sala)
+      signaling.emit('signal', { ...offer, from: signaling.id });
+      logMessage(`Offer enviada para sala (de ${signaling.id}) para peer ${peerId}`);
+    } catch (err) {
+      console.error('Erro ao criar offer', err);
+    }
+  }
+
+  // onconnectionstatechange
+  pc.onconnectionstatechange = () => {
+    logMessage(`Estado conexão ${peerId}: ${pc.connectionState}`);
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+      // limpa
+      closePeerConnection(peerId);
+    }
+  };
+
+  return pc;
+}
+
+function closePeerConnection(peerId) {
+  const peer = peers[peerId];
+  if (!peer) return;
+  try {
+    if (peer.dataChannel) peer.dataChannel.close();
+    if (peer.connection) peer.connection.close();
+  } catch (e) {
+    console.warn('Erro fechando conexão:', e);
+  }
+  delete peers[peerId];
+
+  // remove elemento de áudio se existir
+  const audioEl = document.getElementById(`audio_${peerId}`);
+  if (audioEl && audioEl.parentNode) audioEl.parentNode.removeChild(audioEl);
+
+  logMessage(`Conexão com ${peerId} encerrada.`);
+}
+
+/* ---------------------------
+   CONFIGURAÇÃO DO DATA CHANNEL
+   --------------------------- */
+function setupDataChannel(peerId, channel, tipo) {
+  channel.onopen = () => {
+    logMessage(`[${tipo}] Canal de dados com ${peerId} aberto.`);
+    // habilita UI de mensagens quando qualquer canal abrir
+    if (sendButton) sendButton.disabled = false;
+    if (messageInput) messageInput.disabled = false;
+    if (sendCustomDataButton) sendCustomDataButton.disabled = false;
+  };
+
+  channel.onclose = () => {
+    logMessage(`Canal de dados com ${peerId} fechado.`);
+    // se todos fecharem, desabilita UI
+    const anyOpen = Object.values(peers).some(p => p.dataChannel && p.dataChannel.readyState === 'open');
+    if (!anyOpen) {
+      if (sendButton) sendButton.disabled = true;
+      if (messageInput) messageInput.disabled = true;
+      if (sendCustomDataButton) sendCustomDataButton.disabled = true;
+    }
+  };
+
+  channel.onerror = (err) => {
+    console.error('DataChannel error', err);
+  };
+
+  channel.onmessage = (event) => {
+    let parsed;
+    try {
+      parsed = JSON.parse(event.data);
+    } catch {
+      parsed = null;
+    }
+
+    if (parsed && parsed.type === 'sync_data') {
+      // lógica de sincronização (mantive sua ideia original)
+      const payload = parsed.payload || {};
+      const gameId = payload.gameId;
+      if (gameId) {
+        // substitui dados do jogo específico sem sobrescrever tudo
+        dados.apostasUsuarios = dados.apostasUsuarios.filter(a => a.jogoId !== gameId);
+        dados.desafiosUsuarios = dados.desafiosUsuarios.filter(d => d.jogoId !== gameId);
+        dados.chats = dados.chats.filter(c => c.jogoId !== gameId);
+
+        if (payload.apostasUsuarios) dados.apostasUsuarios.push(...payload.apostasUsuarios);
+        if (payload.desafiosUsuarios) dados.desafiosUsuarios.push(...payload.desafiosUsuarios);
+        if (payload.chats) dados.chats.push(...payload.chats);
+
+        dados.version = parsed.version || Date.now();
+        salvarDados();
+        logMessage(`[LOG] Sincronização recebida do peer ${peerId} (Jogo ${gameId}).`);
+      }
+      return;
+    }
+
+    // Caso padrão: tratar como mensagem de chat
+    if (parsed && parsed.sender && parsed.text) {
+      displayMessage(parsed.sender, parsed.text);
+    } else {
+      displayMessage(peerId, event.data);
+    }
+  };
+}
+
+/* ---------------------------
+   FUNÇÕES DE ÁUDIO E CHAMADA
+   --------------------------- */
+async function start() {
+  startButton && (startButton.disabled = true);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    localStream = stream;
+
+    // mostra local audio (muted)
+    if (localVideo) {
+      localVideo.srcObject = stream;
+      localVideo.muted = true;
+    }
+
+    // Adiciona as tracks locais a todas as conexões já existentes
+    Object.values(peers).forEach(({ connection }) => {
+      try {
+        localStream.getTracks().forEach(track => connection.addTrack(track, localStream));
+      } catch (e) {
+        console.warn('Erro adicionando track a conexão existente', e);
+      }
+    });
+
+    callButton && (callButton.disabled = false);
+    hangupButton && (hangupButton.disabled = false);
+    logMessage('Microfone ativado. Você pode iniciar chamadas P2P (as ofertas serão enviadas).');
+  } catch (e) {
+    console.error('getUserMedia erro:', e);
+    alert('Erro ao acessar o microfone: ' + (e.message || e.name));
+    startButton && (startButton.disabled = false);
+  }
+}
+// Quando usuário quer iniciar ofertas para todos (útil se já houver peers)
+async function callAll() {
+  // para cada peer sem dataChannel aberto, cria offer (se ainda não tiver sido ofertado)
+  const peerIds = Object.keys(peers);
+  for (const peerId of peerIds) {
+    const peer = peers[peerId];
+    if (!peer) continue;
+    // se dataChannel já existir e aberto, ignora
+    if (peer.dataChannel && peer.dataChannel.readyState === 'open') continue;
+    // tenta recriar offer (ser ofertante)
+    try {
+      await createPeerConnection(peerId, true);
+    } catch (e) {
+      console.warn('Erro criando offer para', peerId, e);
+    }
+  }
+}
+
+function hangupAll() {
+  // fecha todas as conexões
+  Object.keys(peers).forEach(peerId => closePeerConnection(peerId));
+
+  // para local stream
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+
+  if (localVideo) localVideo.srcObject = null;
+
+  if (startButton) startButton.disabled = false;
+  if (callButton) callButton.disabled = true;
+  if (hangupButton) hangupButton.disabled = true;
+  if (sendButton) sendButton.disabled = true;
+  if (messageInput) messageInput.disabled = true;
+  if (sendCustomDataButton) sendCustomDataButton.disabled = true;
+
+  logMessage('Todas as conexões encerradas.');
+}
+
+/* ---------------------------
+   CHAT / MENSAGENS P2P
+   --------------------------- */
+function sendMessage() {
+  const text = messageInput ? messageInput.value.trim() : '';
+  if (!text) return;
+  const message = { sender: 'Você', text, timestamp: Date.now() };
+
+  // envia para TODOS os peers via seus data channels
+  Object.values(peers).forEach(({ dataChannel }) => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify(message));
+    }
+  });
+
+  // salva localmente também
+  if (!dados.chats) dados.chats = [];
+  dados.chats.push({ sender: 'Você', content: text, jogoId: getCurrentGameId(), timestamp: Date.now() });
+  salvarDados();
+
+  displayMessage('Você', text);
+  if (messageInput) messageInput.value = '';
+}
+
+function sendDataChannelObjectToAll(obj) {
+  const json = JSON.stringify(obj);
+  Object.values(peers).forEach(({ dataChannel }) => {
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(json);
+    }
+  });
+}
+
+// Função chamada pelo botão "Enviar Objeto Customizado"
+function sendCustomData() {
+  // exemplo: adiciona usuário e sincroniza
+  const newUserId = (dados.usuarios && dados.usuarios.length) ? dados.usuarios.length + 1 : 1;
+  if (!dados.usuarios) dados.usuarios = [];
+  const newUser = { id: newUserId, usuario: `peer_sync_${newUserId}`, role: 'sincronizado', timestamp: Date.now() };
+  dados.usuarios.push(newUser);
+  salvarDados();
+
+  // cria payload filtrado e envia como 'sync_data'
+  const payload = getFilteredDataByGameId(getCurrentGameId());
+  const syncObject = { type: 'sync_data', payload: payload, version: Date.now(), gameId: getCurrentGameId() };
+  sendDataChannelObjectToAll(syncObject);
+
+  displayMessage('Você (Sistema)', `Simulação: novo usuário ${newUser.usuario} adicionado e sincronizado.`);
+}
+
+/* ---------------------------
+   FUNÇÕES AUXILIARES (mantive sua API)
+   --------------------------- */
+function displayMessage(sender, text) {
+  if (!messagesDiv) {
+    console.log(`${sender}: ${text}`);
+    return;
+  }
+  const messageElement = document.createElement('p');
+  messageElement.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  messagesDiv.appendChild(messageElement);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function logMessage(text) {
+  if (!messagesDiv) {
+    console.log('[LOG]', text);
+    return;
+  }
+  const logElement = document.createElement('p');
+  logElement.style.fontStyle = 'italic';
+  logElement.style.fontSize = '0.8em';
+  logElement.textContent = `[LOG] ${text}`;
+  messagesDiv.appendChild(logElement);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+/* ---------------------------
+   LÓGICA DE DADOS (mantida)
+   --------------------------- */
+function getFilteredDataByGameId(gameId) {
+  if (!gameId) return dados;
+  const filteredPayload = {
+    usuarios: (dados.usuarios || []).filter(u => u.jogoId === gameId || u.jogoId === undefined),
+    apostasUsuarios: (dados.apostasUsuarios || []).filter(a => a.jogoId === gameId),
+    desafiosUsuarios: (dados.desafiosUsuarios || []).filter(d => d.jogoId === gameId),
+    chats: (dados.chats || []).filter(c => c.jogoId === gameId),
+    jogos: (dados.jogos || []).filter(j => j.id === gameId),
+    transacoes: dados.transacoes || []
+  };
+  return filteredPayload;
+}
+
+function syncDataToPeers() {
+  // salva localmente
+  salvarDados();
+
+  const gameId = getCurrentGameId();
+  const filteredPayload = getFilteredDataByGameId(gameId);
+  const syncObject = { type: 'sync_data', payload: filteredPayload, version: Date.now(), gameId: gameId };
+  sendDataChannelObjectToAll(syncObject);
+  logMessage(`[LOG] Dados do Jogo ${gameId} sincronizados com peers.`);
+}
+
+/* ---------------------------
+   FUNÇÕES DO MODAL (mantidas/adaptadas)
+   --------------------------- */
+function abrirChatModal() {
+  if (chatModalAberto) return;
+
+  chatModalElement = document.createElement('div');
+  chatModalElement.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5); z-index: 10000; display: flex;
+    justify-content: center; align-items: center;
+  `;
+
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white; padding: 20px; border-radius: 10px;
+    width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative;
+  `;
+
+  const closeButton = document.createElement('button');
+  closeButton.textContent = '×';
+  closeButton.style.cssText = `position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666;`;
+  closeButton.onclick = fecharChatModal;
+
+  const chatHTML = `
+    <div id="container">
+      <h1>WebRTC Voice & Text Chat</h1>
+      <p>Comunicação P2P de Áudio e Texto via WebRTC.</p>
+      <div id="video-streams">
+        <audio id="localVideo" playsinline autoplay muted class="video-hidden"></audio>
+        <div id="remoteContainer"></div>
+      </div>
+      <div class="box">
+        <button id="startButton">Start (Obter Áudio)</button>
+        <button id="callButton">Call (Enviar Offers)</button>
+        <button id="hangupButton">Hang Up</button>
+      </div>
+      <div id="chatContainer">
+        <h3>Chat de Texto P2P</h3>
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Digite sua mensagem..." disabled>
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+          <button id="sendButton" disabled style="flex-grow: 1;">Enviar Texto</button>
+          <button id="sendCustomDataButton" disabled style="flex-grow: 1;">Enviar Objeto Customizado</button>
+        </div>
+      </div>
+      <p>Verifique o console para logs de conexão.</p>
+    </div>
+  `;
+
+  modalContent.innerHTML = chatHTML;
+  modalContent.appendChild(closeButton);
+  chatModalElement.appendChild(modalContent);
+  document.body.appendChild(chatModalElement);
+  chatModalAberto = true;
+
+  // inicializa elementos e listeners
+  setTimeout(() => {
+    initChatUI();
+  }, 50);
+
+  // fecha modal ao clicar fora
+  chatModalElement.onclick = function(e) {
+    if (e.target === chatModalElement) fecharChatModal();
+  };
+}
+
+function fecharChatModal() {
+  if (chatModalElement && chatModalAberto) {
+    // fecha conexões abertas somente do modal (opcional)
+    // disconnectModalSocket(); // se você tiver lógica separada
+
+    // remove modal
+    document.body.removeChild(chatModalElement);
+    chatModalElement = null;
+    chatModalAberto = false;
+    // NOTA: não desconectamos peers automaticamente, deixamos o usuário hangupAll() manualmente ou ao sair da sala
+  }
+}
+/* ---------------------------
+   UTILITÁRIAS
+   --------------------------- */
+function getCurrentGameId() {
+  return window.salaAtual || (dados.jogos && dados.jogos[0] && dados.jogos[0].id);
+}
+
+// Se desejar abrir o modal automaticamente:
+ // abrirChatModal();
+
+/* ---------------------------
+   FIM DO ARQUIVO
+   --------------------------- */
+
+  
+  
+
+
+  
+  (async () => {
+  const dados = await carregarDadosBackend;
+  console.log('Dados prontos:', dados);
+  // agora pode rodar o resto do seu código
+})();
+
+  
+  // ===== INICIALIZAÇÃO GLOBAL SEGURA =====
+if (!window.AppState) {
+    window.AppState = {};
+}
+if (!window.AppState.socket) {
+    window.AppState.socket = null;
+}
+if (!window.salasDisponiveis) {
+    window.salasDisponiveis = {};
+}
+if (typeof window.salaAtual === 'undefined') {
+    window.salaAtual = null;
+}
+
+
+
+
 
 // Função inicializadora
 async function inicializar() {
@@ -362,6 +1396,10 @@ if (document.readyState === 'loading') {
 }
 //console.log("_____dados",dados)
 // Adicionar Card na Div
+
+
+
+
 
 /////
 /////
@@ -612,35 +1650,6 @@ function calcularMeritoMaximoAposta(usuario) {
     return Math.floor(usuario.merito * 0.3); // 30% do mérito atual
 }
 // Função para atualizar mérito (referenciada em desafios.js)
-function atualizarMerito(usuario, tipo, positivo) {
-    let pontos = 0;
-    
-    switch(tipo) {
-        case 'desafio_criado':
-            pontos = positivo ? 10 : -5;
-            break;
-        case 'desafio_cumprido':
-            pontos = positivo ? 20 : -15;
-            break;
-        case 'pagamento_realizado':
-            pontos = positivo ? 15 : 0;
-            break;
-        case 'pagamento_pendente':
-            pontos = positivo ? 0 : -20;
-            break;
-        case 'aposta_ganha':
-            pontos = positivo ? 25 : 0;
-            break;
-        case 'aposta_perdida':
-            pontos = positivo ? 0 : -10;
-            break;
-        default:
-            pontos = positivo ? 5 : -5;
-    }
-    
-    usuario.merito += pontos;
-    return pontos;
-}
 // Função para carregar vídeos do streamer
 function carregarVideosStreamer(streamer) {
     if (!streamer.videos || streamer.videos.length === 0) {
@@ -854,25 +1863,136 @@ window.onload = function() {
 ////////////
 ////////////
 
+
 /*
 
-let modalSocket = null;
-let modalUserName = '';
-let modalCurrentRoom = '';
-*/
-let modalActiveRooms = new Map();
-let chatModalAberto = false;
-let chatModalElement = null;
-// P2PChatHybrid.js
-let modalSocket = null;
-//let peerConnection = null;
-//let dataChannel = null;
-let remoteSocketId = null;
+// Função para criar e abrir o modal
+function abrirChatModal() {
+    if (chatModalAberto) return;
+    
+    // Cria o elemento do modal
+    chatModalElement = document.createElement('div');
+    chatModalElement.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    // Cria o conteúdo do modal
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    `;
+    
+    // Adiciona botão de fechar
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+    `;
+    closeButton.onclick = fecharChatModal;
+    
+    // Cria o conteúdo do chat dentro do modal
+    const chatHTML = `
+<div id="container">
+    <h1>WebRTC Voice & Text Chat</h1>
 
-let modalUserName = 'Usuario';
-let modalCurrentRoom = '';
-let modalP2PMode = false; // false = modo servidor, true = modo P2P
-// Funções para exibir jogos
+    <p>Comunicação P2P de Áudio e Texto via WebRTC.</p>
+
+    <div id="video-streams">
+        <video id="localVideo" playsinline autoplay muted class="video-hidden"></video>
+        <video id="remoteVideo" playsinline autoplay class="video-hidden"></video>
+    </div>
+
+    <div class="box">
+        <button id="startButton">Start (Obter Áudio)</button>
+        <button id="callButton">Call</button>
+        <button id="hangupButton">Hang Up</button>
+    </div>
+
+    <div id="chatContainer">
+        <h3>Chat de Texto P2P</h3>
+        <div id="messages">
+            </div>
+        <input type="text" id="messageInput" placeholder="Digite sua mensagem..." disabled>
+        
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <button id="sendButton" disabled style="flex-grow: 1;">Enviar Texto</button>
+            
+            <button id="sendCustomDataButton"  style="flex-grow: 1;">Enviar Objeto Customizado</button> 
+        </div>
+    </div>
+    
+    <p>Verifique o console para logs de conexão.</p>
+
+
+
+</div>
+    `;
+    
+    modalContent.innerHTML = chatHTML;
+    modalContent.appendChild(closeButton);
+    chatModalElement.appendChild(modalContent);
+    document.body.appendChild(chatModalElement);
+    chatModalAberto = true;
+    
+    
+    // Fecha modal ao clicar fora
+    chatModalElement.onclick = function(e) {
+        if (e.target === chatModalElement) {
+          document.getElementById('modalMessages').innerHTML = '';
+
+            fecharChatModal();
+        }
+    };
+
+    // Enter para enviar mensagem no modal
+    setTimeout(() => {
+        const modalInput = document.getElementById('modalMessageInput');
+        if (modalInput) {
+            modalInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendModalMessage();
+                }
+            });
+        }
+    }, 200);
+}
+// Função para fechar o modal
+function fecharChatModal() {
+    if (chatModalElement && chatModalAberto) {
+        // Desconecta o socket ao fechar o modal
+        disconnectModalSocket();
+        
+        document.body.removeChild(chatModalElement);
+        chatModalElement = null;
+        chatModalAberto = false;
+        modalActiveRooms.clear();
+        modalCurrentRoom = '';
+    }
+}
+*/
 function carregarJogos() {
     const container = document.getElementById('lista-jogos');
     if (!container) return;
@@ -1005,7 +2125,7 @@ function carregarJogos() {
         
           // === BOTÃO CRIAR/ENTRAR NA SALA DO JOGO ===
 
-          console.log("___jogo",jogo.nome)
+        //  console.log("___jogo",jogo.nome)
           const btnSalaEstadio = document.createElement('button');
 btnSalaEstadio.innerHTML = '💬 Chat jogo';
 btnSalaEstadio.onclick = () => abrirChatModal(jogo.id);
@@ -1022,911 +2142,6 @@ btnSalaEstadio.onclick = () => abrirChatModal(jogo.id);
     });
 
 }
-
-
-
-/*
-
-function updateModalActiveRoomsDisplay() {
-    const display = document.getElementById('modalActiveRooms');
-    if (!display) return;
-
-    display.innerHTML = '';
-    
-    modalActiveRooms.forEach((messages, roomName) => {
-        const roomDiv = document.createElement('div');
-        roomDiv.innerHTML = `📁 ${roomName} (${messages.length} mensagens)`;
-        display.appendChild(roomDiv);
-    });
-}
-function joinServerRoom(roomType, roomId) {
-  if (!modalSocket) return alert('Conecte primeiro');
-  const roomName = `${roomType}-${roomId}-visitante`;
-  modalCurrentRoom = roomName;
-
-  modalSocket.emit('join-' + roomType, {
-    [roomType + 'Id']: roomId,
-    user: modalUserName,
-    merito: 'visitante'
-  });
-
-  modalSocket.emit('request-chat-history', { room: roomName });
-  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
-}
-// Função para atualizar o seletor de salas no modal
-function updateModalRoomSelector() {
-    const selector = document.getElementById('modalRoomSelector');
-    if (!selector) return;
-
-    selector.innerHTML = '<option value="">-- Selecionar Sala --</option>';
-    
-    modalActiveRooms.forEach((messages, roomName) => {
-        const option = document.createElement('option');
-        option.value = roomName;
-        option.textContent = roomName;
-        option.selected = (roomName === modalCurrentRoom);
-        selector.appendChild(option);
-    });
-}
-// Função para entrar em sala no modal
-function joinModalRoom() {
-    if (!modalSocket) {
-        alert('Conecte primeiro');
-        return;
-    }
-
-    const roomType = document.getElementById('modalRoomType').value;
-    const roomId = document.getElementById('modalRoomId').value;
-    const roomName = `${roomType}-${roomId}-visitante`;
-
-    // Se já está na sala, não faz nada
-    if (modalActiveRooms.has(roomName)) {
-        addModalMessage('Sistema', `Já está na sala ${roomName}`, 'system');
-        return;
-    }
-
-    // Entra na sala via socket
-    modalSocket.emit('join-' + roomType, {
-        [roomType + 'Id']: roomId,
-        user: modalUserName,
-        merito: 0
-    });
-
-    // Adiciona sala à lista local
-    modalActiveRooms.set(roomName, []);
-    
-    // Se é a primeira sala, seleciona automaticamente
-    if (modalActiveRooms.size === 1) {
-        modalCurrentRoom = roomName;
-    }
-
-    updateModalRoomSelector();
-    updateModalActiveRoomsDisplay();
-    // Função para atualizar a exibição de salas ativas no modal
-
-    addModalMessage('Sistema', `Entrou na sala: ${roomName}`, 'system');
-
-    // Solicita histórico da sala
-    modalSocket.emit('request-chat-history', { room: roomName });
-}
-// Função para criar e abrir o modal
-function abrirChatModal() {
-    if (chatModalAberto) return;
-    
-    // Cria o elemento do modal
-    chatModalElement = document.createElement('div');
-    chatModalElement.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        z-index: 10000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    `;
-    
-    // Cria o conteúdo do modal
-    const modalContent = document.createElement('div');
-    modalContent.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        width: 90%;
-        max-width: 800px;
-        max-height: 90vh;
-        overflow-y: auto;
-        position: relative;
-    `;
-    
-    // Adiciona botão de fechar
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 15px;
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #666;
-    `;
-    closeButton.onclick = fecharChatModal;
-    
-    // Cria o conteúdo do chat dentro do modal
-    const chatHTML = `
-        <div>
-            <h3>Conectar</h3>
-            <input type="text" id="modalServerUrl" value="http://localhost:3000" placeholder="URL do servidor">
-            <input type="text" id="modalUserName" value="UsuarioTeste" placeholder="Seu nome">
-            <button onclick="connectModalSocket()">Conectar</button>
-            <button onclick="disconnectModalSocket()">Desconectar</button>
-        </div>
-
-        <div>
-            <h3>Entrar em Salas</h3>
-            <select id="modalRoomType">
-                <option value="jogo">Jogo</option>
-                <option value="time">Time</option>
-                <option value="live">Live</option>
-            </select>
-            <input type="text" id="modalRoomId" value="123" placeholder="ID">
-            <button onclick="joinModalRoom()">Entrar na Sala</button>
-            
-            <h4>Salas Ativas:</h4>
-            <div id="modalActiveRooms" style="border:1px solid #ccc; height:100px; overflow-y:scroll; padding:10px; margin:10px 0;"></div>
-        </div>
-
-        <div>
-            <h3>Mensagens</h3>
-            <select id="modalRoomSelector" onchange="switchModalRoom()" style="margin-bottom:10px;">
-                <option value="">-- Selecionar Sala --</option>
-            </select>
-            <div id="modalMessages" style="border:1px solid #ccc; height:300px; overflow-y:scroll; padding:10px;"></div>
-            <input type="text" id="modalMessageInput" placeholder="Digite sua mensagem" style="width:70%">
-            <button onclick="sendModalMessage()">Enviar</button>
-        </div>
-    `;
-    
-    modalContent.innerHTML = chatHTML;
-    modalContent.appendChild(closeButton);
-    chatModalElement.appendChild(modalContent);
-    document.body.appendChild(chatModalElement);
-    chatModalAberto = true;
-    
-    // CONECTA AUTOMATICAMENTE ao abrir o modal
-    setTimeout(() => {
-        connectModalSocket();
-    }, 100);
-    
-    // Fecha modal ao clicar fora
-    chatModalElement.onclick = function(e) {
-        if (e.target === chatModalElement) {
-          document.getElementById('modalMessages').innerHTML = '';
-
-            fecharChatModal();
-        }
-    };
-
-    // Enter para enviar mensagem no modal
-    setTimeout(() => {
-        const modalInput = document.getElementById('modalMessageInput');
-        if (modalInput) {
-            modalInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendModalMessage();
-                }
-            });
-        }
-    }, 200);
-}
-// Servidor de sinalização (Socket.io)
-function connectChat(serverUrl, userName) {
-  modalUserName = userName;
-  modalSocket = io(serverUrl);
-
-  modalSocket.on('connect', () => {
-    console.log('🔗 Conectado ao servidor:', modalSocket.id);
-    addModalMessage('Sistema', 'Conectado ao servidor', 'system');
-  });
-
-  modalSocket.on('disconnect', () => {
-    addModalMessage('Sistema', 'Desconectado', 'system');
-  });
-
-  // Modo servidor → mensagens
-  modalSocket.on('chat-message', (data) => {
-    const room = getModalRoomFromData(data);
-    addModalMessage(data.usuario, data.mensagem, room);
-  });
-
-  modalSocket.on('chat-history', (history) => {
-    history.forEach(msg => {
-      const room = getModalRoomFromData(msg);
-      addModalMessage(msg.usuario, msg.mensagem, room);
-    });
-  });
-
-  // WebRTC Signaling (para P2P)
-  modalSocket.on('offer', async (data) => {
-    console.log('📨 Offer recebida');
-    remoteSocketId = data.from;
-    await criarPeer(false); // receptor
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    modalSocket.emit('answer', { to: data.from, answer });
-  });
-
-  modalSocket.on('answer', async (data) => {
-    console.log('📨 Answer recebida');
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-  });
-
-  modalSocket.on('ice-candidate', async (data) => {
-    try {
-      await peerConnection.addIceCandidate(data.candidate);
-    } catch (err) {
-      console.error('Erro ao adicionar ICE:', err);
-    }
-  });
-}
-// Entrar em sala no modo servidor
-function joinServerRoom(roomType, roomId) {
-  if (!modalSocket) return alert('Conecte primeiro');
-  const roomName = `${roomType}-${roomId}-visitante`;
-  modalCurrentRoom = roomName;
-
-  modalSocket.emit('join-' + roomType, {
-    [roomType + 'Id']: roomId,
-    user: modalUserName,
-    merito: 'visitante'
-  });
-
-  modalSocket.emit('request-chat-history', { room: roomName });
-  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
-}
-// Enviar mensagem (modo híbrido)
-function sendHybridMessage(message) {
-  if (modalP2PMode && dataChannel && dataChannel.readyState === 'open') {
-    const msg = { usuario: modalUserName, mensagem: message };
-    dataChannel.send(JSON.stringify(msg));
-    addModalMessage(modalUserName, message, modalCurrentRoom); // ✅ CORRIGIDO: Exibe mensagem localmente
-  } else {
-    if (!modalSocket) return alert('Sem conexão com servidor');
-    if (!modalCurrentRoom) return alert('Entre em uma sala primeiro');
-    const [type, id] = modalCurrentRoom.split('-');
-
-    const payload = {
-      user: modalUserName,
-      message,
-      merito: 'visitante'
-    };
-
-
-    modalSocket.emit('chat-message', payload);
-    addModalMessage(modalUserName, message, modalCurrentRoom); // ✅ CORRIGIDO: Exibe mensagem localmente
-  }
-}
-// =========================
-// === FUNÇÕES P2P CHAT ===
-// =========================
-async function iniciarP2PChat(serverUrl, userName, roomType, roomId) {
-  modalP2PMode = true;
-  connectChat(serverUrl, userName);
-
-  modalSocket.on('connect', async () => {
-    console.log('🔗 Conectado (modo P2P)');
-    modalCurrentRoom = `${roomType}-${roomId}-visitante`;
-
-    // Entra na sala
-    modalSocket.emit('join-' + roomType, {
-      [roomType + 'Id']: roomId,
-      user: modalUserName,
-      merito: 'visitante'
-    });
-
-    // ✅ CORRIGIDO: Solicita histórico da sala (mensagens salvas no servidor)
-    modalSocket.emit('request-chat-history', { room: modalCurrentRoom });
-
-    // Pede lista de peers na sala
-    setTimeout(() => {
-      modalSocket.emit('request-peers', { room: modalCurrentRoom });
-    }, 500);
-  });
-
-  // Quando o servidor responder com a lista de peers:
-  modalSocket.on('peers-list', async (peers) => {
-    if (peers.length === 0) {
-      console.log('🟢 Sou o primeiro usuário da sala → caller');
-      // Primeiro usuário — não cria offer ainda, espera o segundo entrar
-    } else {
-      // Já existe alguém na sala, então sou o segundo
-      remoteSocketId = peers[0];
-      console.log('🔵 Sou o segundo usuário → receiver de', remoteSocketId);
-      await criarPeer(true); // chama o offer para o remote
-    }
-  });
-
-  // Atualiza a lista de peers quando o segundo entra
-  modalSocket.on('room-user-count', async ({ room, count }) => {
-    if (room === modalCurrentRoom && count === 2 && !remoteSocketId) {
-      console.log('👥 Dois usuários conectados, iniciando handshake...');
-      modalSocket.emit('request-peers', { room: modalCurrentRoom });
-    }
-  });
-}
-async function criarPeer(isCaller = true) {
-  peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // ✅ Google STUN
-  });
-
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate && remoteSocketId) {
-      modalSocket.emit('ice-candidate', {
-        to: remoteSocketId,
-        candidate: event.candidate
-      });
-    }
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    console.log('🌐 Estado da conexão:', peerConnection.connectionState);
-  };
-
-
-    if (isCaller && remoteSocketId) {
-  dataChannel = peerConnection.createDataChannel('chat');
-  configurarDataChannel(dataChannel);
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  modalSocket.emit('offer', { to: remoteSocketId, offer });
-} else {
-    peerConnection.ondatachannel = (event) => {
-      dataChannel = event.channel;
-      configurarDataChannel(dataChannel);
-    };
-  }
-}
-function configurarDataChannel(channel) {
-  channel.onopen = () => console.log('📡 Canal P2P aberto');
-  channel.onclose = () => console.log('📴 Canal P2P fechado');
-  channel.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    addModalMessage(data.usuario, data.mensagem, modalCurrentRoom);
-  };
-}
-// =========================
-// === FUNÇÕES AUXILIARES ===
-// =========================
-function getModalRoomFromData(data) {
-  if (data.jogoId) return `jogo-${data.jogoId}-visitante`;
-  if (data.timeId) return `time-${data.timeId}-visitante`;
-  if (data.liveId) return `live-${data.liveId}-visitante`;
-  return data.room || 'unknown';
-}
-async function connectModalSocket() {
-  const serverUrl = document.getElementById('modalServerUrl').value;
-  const userName = document.getElementById('modalUserName').value;
-  const roomType = document.getElementById('modalRoomType').value;
-  const roomId = document.getElementById('modalRoomId').value;
-
-  try {
-    modalP2PMode = true;
-    await iniciarP2PChat(serverUrl, userName, roomType, roomId);
-    console.log('✅ Modo P2P ativo');
-  } catch (err) {
-    console.warn('⚠️ Erro no P2P, voltando para modo servidor:', err);
-    modalP2PMode = false;
-    connectChat(serverUrl, userName);
-    joinServerRoom(roomType, roomId);
-  }
-}
-function addModalMessage(user, text, room) {
-  const box = document.getElementById('modalMessages');
-  if (!box) return;
-  const div = document.createElement('div');
-  div.innerHTML = `<strong>${user}:</strong> ${text}`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-function sendModalMessage() {
-  const input = document.getElementById('modalMessageInput');
-  const message = input.value.trim();
-  if (!message) return;
-  sendHybridMessage(message);
-  input.value = '';
-}
-
-*/
-
-// Função para desconectar o socket do modal
-function disconnectModalSocket() {
-    if (modalSocket) {
-        modalSocket.disconnect();
-        modalSocket = null;
-        modalActiveRooms.clear();
-        updateModalRoomSelector();
-        updateModalActiveRoomsDisplay();
-        addModalMessage('Sistema', 'Desconectado', 'system');
-    }
-}
-// Função para fechar o modal
-function fecharChatModal() {
-    if (chatModalElement && chatModalAberto) {
-        // Desconecta o socket ao fechar o modal
-        disconnectModalSocket();
-        
-        document.body.removeChild(chatModalElement);
-        chatModalElement = null;
-        chatModalAberto = false;
-        modalActiveRooms.clear();
-        modalCurrentRoom = '';
-    }
-}
-
-
-
-
-function joinServerRoom(roomType, roomId) {
-  if (!modalSocket) return alert('Conecte primeiro');
-  const roomName = `${roomType}-${roomId}-visitante`;
-  modalCurrentRoom = roomName;
-
-  modalSocket.emit('join-' + roomType, {
-    [roomType + 'Id']: roomId,
-    user: modalUserName,
-    merito: 'visitante'
-  });
-
-  modalSocket.emit('request-chat-history', { room: roomName });
-  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
-}
-// Função para atualizar o seletor de salas no modal
-function updateModalRoomSelector() {
-    const selector = document.getElementById('modalRoomSelector');
-    if (!selector) return;
-
-    selector.innerHTML = '<option value="">-- Selecionar Sala --</option>';
-    
-    modalActiveRooms.forEach((messages, roomName) => {
-        const option = document.createElement('option');
-        option.value = roomName;
-        option.textContent = roomName;
-        option.selected = (roomName === modalCurrentRoom);
-        selector.appendChild(option);
-    });
-}
-
-function updateModalActiveRoomsDisplay() {
-    const display = document.getElementById('modalActiveRooms');
-    if (!display) return;
-
-    display.innerHTML = '';
-    
-    modalActiveRooms.forEach((messages, roomName) => {
-        const roomDiv = document.createElement('div');
-        roomDiv.innerHTML = `📁 ${roomName} (${messages.length} mensagens)`;
-        display.appendChild(roomDiv);
-    });
-}
-// Função para entrar em sala no modal
-function joinModalRoom() {
-    if (!modalSocket) {
-        alert('Conecte primeiro');
-        return;
-    }
-
-    const roomType = document.getElementById('modalRoomType').value;
-    const roomId = document.getElementById('modalRoomId').value;
-    const roomName = `${roomType}-${roomId}-visitante`;
-
-    // Se já está na sala, não faz nada
-    if (modalActiveRooms.has(roomName)) {
-        addModalMessage('Sistema', `Já está na sala ${roomName}`, 'system');
-        return;
-    }
-
-    // Entra na sala via socket
-    modalSocket.emit('join-' + roomType, {
-        [roomType + 'Id']: roomId,
-        user: modalUserName,
-        merito: 0
-    });
-
-    // Adiciona sala à lista local
-    modalActiveRooms.set(roomName, []);
-    
-    // Se é a primeira sala, seleciona automaticamente
-    if (modalActiveRooms.size === 1) {
-        modalCurrentRoom = roomName;
-    }
-
-    updateModalRoomSelector();
-    updateModalActiveRoomsDisplay();
-    // Função para atualizar a exibição de salas ativas no modal
-
-    addModalMessage('Sistema', `Entrou na sala: ${roomName}`, 'system');
-
-    // Solicita histórico da sala
-    modalSocket.emit('request-chat-history', { room: roomName });
-}
-
-
-// Função para criar e abrir o modal
-function abrirChatModal() {
-    if (chatModalAberto) return;
-    
-    // Cria o elemento do modal
-    chatModalElement = document.createElement('div');
-    chatModalElement.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        z-index: 10000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    `;
-    
-    // Cria o conteúdo do modal
-    const modalContent = document.createElement('div');
-    modalContent.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        width: 90%;
-        max-width: 800px;
-        max-height: 90vh;
-        overflow-y: auto;
-        position: relative;
-    `;
-    
-    // Adiciona botão de fechar
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 15px;
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #666;
-    `;
-    closeButton.onclick = fecharChatModal;
-    
-    // Cria o conteúdo do chat dentro do modal
-    const chatHTML = `
-        <div>
-            <h3>Conectar</h3>
-            <input type="text" id="modalServerUrl" value="http://localhost:3000" placeholder="URL do servidor">
-            <input type="text" id="modalUserName" value="UsuarioTeste" placeholder="Seu nome">
-            <button onclick="connectModalSocket()">Conectar</button>
-            <button onclick="disconnectModalSocket()">Desconectar</button>
-        </div>
-
-        <div>
-            <h3>Entrar em Salas</h3>
-            <select id="modalRoomType">
-                <option value="jogo">Jogo</option>
-                <option value="time">Time</option>
-                <option value="live">Live</option>
-            </select>
-            <input type="text" id="modalRoomId" value="123" placeholder="ID">
-            <button onclick="joinModalRoom()">Entrar na Sala</button>
-            
-            <h4>Salas Ativas:</h4>
-            <div id="modalActiveRooms" style="border:1px solid #ccc; height:100px; overflow-y:scroll; padding:10px; margin:10px 0;"></div>
-        </div>
-
-        <div>
-            <h3>Mensagens</h3>
-            <select id="modalRoomSelector" onchange="switchModalRoom()" style="margin-bottom:10px;">
-                <option value="">-- Selecionar Sala --</option>
-            </select>
-            <div id="modalMessages" style="border:1px solid #ccc; height:300px; overflow-y:scroll; padding:10px;"></div>
-            <input type="text" id="modalMessageInput" placeholder="Digite sua mensagem" style="width:70%">
-            <button onclick="sendModalMessage()">Enviar</button>
-        </div>
-    `;
-    
-    modalContent.innerHTML = chatHTML;
-    modalContent.appendChild(closeButton);
-    chatModalElement.appendChild(modalContent);
-    document.body.appendChild(chatModalElement);
-    chatModalAberto = true;
-    
-    // CONECTA AUTOMATICAMENTE ao abrir o modal
-    setTimeout(() => {
-        connectModalSocket();
-    }, 100);
-    
-    // Fecha modal ao clicar fora
-    chatModalElement.onclick = function(e) {
-        if (e.target === chatModalElement) {
-          document.getElementById('modalMessages').innerHTML = '';
-
-            fecharChatModal();
-        }
-    };
-
-    // Enter para enviar mensagem no modal
-    setTimeout(() => {
-        const modalInput = document.getElementById('modalMessageInput');
-        if (modalInput) {
-            modalInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendModalMessage();
-                }
-            });
-        }
-    }, 200);
-}
-// Função para fechar o modal
-function fecharChatModal() {
-    if (chatModalElement && chatModalAberto) {
-        // Desconecta o socket ao fechar o modal
-        disconnectModalSocket();
-        
-        document.body.removeChild(chatModalElement);
-        chatModalElement = null;
-        chatModalAberto = false;
-        modalActiveRooms.clear();
-        modalCurrentRoom = '';
-    }
-}
-// Servidor de sinalização (Socket.io)
-function connectChat(serverUrl, userName) {
-  modalUserName = userName;
-  modalSocket = io(serverUrl);
-
-  modalSocket.on('connect', () => {
-    console.log('🔗 Conectado ao servidor:', modalSocket.id);
-    addModalMessage('Sistema', 'Conectado ao servidor', 'system');
-  });
-
-  modalSocket.on('disconnect', () => {
-    addModalMessage('Sistema', 'Desconectado', 'system');
-  });
-
-  // Modo servidor → mensagens
-  modalSocket.on('chat-message', (data) => {
-    const room = getModalRoomFromData(data);
-    addModalMessage(data.usuario, data.mensagem, room);
-  });
-
-  modalSocket.on('chat-history', (history) => {
-    history.forEach(msg => {
-      const room = getModalRoomFromData(msg);
-      addModalMessage(msg.usuario, msg.mensagem, room);
-    });
-  });
-
-  // WebRTC Signaling (para P2P)
-  modalSocket.on('offer', async (data) => {
-    console.log('📨 Offer recebida');
-    remoteSocketId = data.from;
-    await criarPeer(false); // receptor
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    modalSocket.emit('answer', { to: data.from, answer });
-  });
-
-  modalSocket.on('answer', async (data) => {
-    console.log('📨 Answer recebida');
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-  });
-
-  modalSocket.on('ice-candidate', async (data) => {
-    try {
-      await peerConnection.addIceCandidate(data.candidate);
-    } catch (err) {
-      console.error('Erro ao adicionar ICE:', err);
-    }
-  });
-}
-// Entrar em sala no modo servidor
-function joinServerRoom(roomType, roomId) {
-  if (!modalSocket) return alert('Conecte primeiro');
-  const roomName = `${roomType}-${roomId}-visitante`;
-  modalCurrentRoom = roomName;
-
-  modalSocket.emit('join-' + roomType, {
-    [roomType + 'Id']: roomId,
-    user: modalUserName,
-    merito: 'visitante'
-  });
-
-  modalSocket.emit('request-chat-history', { room: roomName });
-  addModalMessage('Sistema', `Entrou na sala ${roomName}`, 'system');
-}
-// Enviar mensagem (modo híbrido)
-function sendHybridMessage(message) {
-  if (modalP2PMode && dataChannel && dataChannel.readyState === 'open') {
-    const msg = { usuario: modalUserName, mensagem: message };
-    dataChannel.send(JSON.stringify(msg));
-    addModalMessage(modalUserName, message, modalCurrentRoom); 
-  } else {
-    if (!modalSocket) return alert('Sem conexão com servidor');
-    if (!modalCurrentRoom) return alert('Entre em uma sala primeiro');
-    const [type, id] = modalCurrentRoom.split('-');
-
-    const payload = {
-      user: modalUserName,
-      message,
-      merito: 'visitante'
-    };
-   /* if (type === 'jogo') payload.jogoId = id;
-    if (type === 'time') payload.timeId = id;
-    if (type === 'live') payload.liveId = id;
-    */
-
-    modalSocket.emit('chat-message', payload);
-    addModalMessage(modalUserName, message, modalCurrentRoom);
-  }
-}
-// =========================
-// === FUNÇÕES P2P CHAT ===
-// =========================
-async function iniciarP2PChat(serverUrl, userName, roomType, roomId) {
-  modalP2PMode = true;
-  connectChat(serverUrl, userName);
-
-  modalSocket.on('connect', async () => {
-    console.log('🔗 Conectado (modo P2P)');
-    modalCurrentRoom = `${roomType}-${roomId}-visitante`;
-
-    // Entra na sala
-    modalSocket.emit('join-' + roomType, {
-      [roomType + 'Id']: roomId,
-      user: modalUserName,
-      merito: 'visitante'
-    });
-
-    // Solicita histórico da sala (mensagens salvas no servidor)
-    modalSocket.emit('request-chat-history', { room: modalCurrentRoom });
-
-    // Pede lista de peers na sala
-    setTimeout(() => {
-      modalSocket.emit('request-peers', { room: modalCurrentRoom });
-    }, 500);
-  });
-
-  // Quando o servidor responder com a lista de peers:
-  modalSocket.on('peers-list', async (peers) => {
-    if (peers.length === 0) {
-      console.log('🟢 Sou o primeiro usuário da sala → caller');
-      // Primeiro usuário — não cria offer ainda, espera o segundo entrar
-    } else {
-      // Já existe alguém na sala, então sou o segundo
-      remoteSocketId = peers[0];
-      console.log('🔵 Sou o segundo usuário → receiver de', remoteSocketId);
-      await criarPeer(true); // chama o offer para o remote
-    }
-  });
-
-  // Atualiza a lista de peers quando o segundo entra
-  modalSocket.on('room-user-count', async ({ room, count }) => {
-    if (room === modalCurrentRoom && count === 2 && !remoteSocketId) {
-      console.log('👥 Dois usuários conectados, iniciando handshake...');
-      modalSocket.emit('request-peers', { room: modalCurrentRoom });
-    }
-  });
-}
-async function criarPeer(isCaller = true) {
-  peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // ✅ Google STUN
-  });
-
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate && remoteSocketId) {
-      modalSocket.emit('ice-candidate', {
-        to: remoteSocketId,
-        candidate: event.candidate
-      });
-    }
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    console.log('🌐 Estado da conexão:', peerConnection.connectionState);
-  };
-
-
-    if (isCaller && remoteSocketId) {
-  dataChannel = peerConnection.createDataChannel('chat');
-  configurarDataChannel(dataChannel);
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  modalSocket.emit('offer', { to: remoteSocketId, offer });
-} else {
-    peerConnection.ondatachannel = (event) => {
-      dataChannel = event.channel;
-      configurarDataChannel(dataChannel);
-    };
-  }
-}
-
-// 🎯 FUNÇÃO ATUALIZADA COM LOGS DE DIAGNÓSTICO
-function configurarDataChannel(channel) {
-  channel.onopen = () => {
-    console.log('📡 Canal P2P aberto. DataChannel ReadyState:', channel.readyState);
-  };
-  channel.onclose = () => {
-    console.log('📴 Canal P2P fechado. DataChannel ReadyState:', channel.readyState);
-  };
-  channel.onerror = (error) => { // ⚠️ NOVO: Captura erros do canal
-    console.error('⚠️ Erro no DataChannel:', error);
-  };
-  channel.onmessage = (event) => {
-    console.log('📬 Mensagem P2P recebida:', event.data); // ⚠️ NOVO: Loga mensagem recebida
-    try {
-      const data = JSON.parse(event.data);
-      addModalMessage(data.usuario, data.mensagem, modalCurrentRoom);
-    } catch (err) {
-      console.error('Erro ao processar mensagem P2P:', err);
-    }
-  };
-}
-
-// =========================
-// === FUNÇÕES AUXILIARES ===
-// =========================
-function getModalRoomFromData(data) {
-  if (data.jogoId) return `jogo-${data.jogoId}-visitante`;
-  if (data.timeId) return `time-${data.timeId}-visitante`;
-  if (data.liveId) return `live-${data.liveId}-visitante`;
-  return data.room || 'unknown';
-}
-async function connectModalSocket() {
-  const serverUrl = document.getElementById('modalServerUrl').value;
-  const userName = document.getElementById('modalUserName').value;
-  const roomType = document.getElementById('modalRoomType').value;
-  const roomId = document.getElementById('modalRoomId').value;
-
-  try {
-    modalP2PMode = true;
-    await iniciarP2PChat(serverUrl, userName, roomType, roomId);
-    console.log('✅ Modo P2P ativo');
-  } catch (err) {
-    console.warn('⚠️ Erro no P2P, voltando para modo servidor:', err);
-    modalP2PMode = false;
-    connectChat(serverUrl, userName);
-    joinServerRoom(roomType, roomId);
-  }
-}
-function addModalMessage(user, text, room) {
-  const box = document.getElementById('modalMessages');
-  if (!box) return;
-  const div = document.createElement('div');
-  div.innerHTML = `<strong>${user}:</strong> ${text}`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-function sendModalMessage() {
-  const input = document.getElementById('modalMessageInput');
-  const message = input.value.trim();
-  if (!message) return;
-  sendHybridMessage(message);
-  input.value = '';
-}
-
-
-
-
-
-
-
-
-
 function carregarEstadiosDoJogo(jogoId) {
     const container = document.getElementById('lista-estadios');
     container.innerHTML = '';
@@ -2522,16 +2737,7 @@ function excluirJogo(id) {
 // === ESTADIOS.JS ===
 // Módulo completo: lista por jogo + lista geral de todos os estádios
 // === FUNÇÃO AUXILIAR: RECARREGA A LISTA ATUAL ===
-function recarregarListaEstadiosAtual() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const jogoId = parseInt(urlParams.get('jogo'));
 
-    if (jogoId && document.getElementById('lista-estadios').innerHTML.includes('Estádios - ')) {
-        carregarEstadiosDoJogo(jogoId);
-    } else {
-        carregarEstadios();
-    }
-}
 // === ADICIONAR ESTÁDIO (só no modo jogo selecionado) ===
 function adicionarEstadio() {
     if (!jogoSelecionadoId) return alert("Selecione um jogo primeiro!");
@@ -2618,24 +2824,6 @@ function excluirEstadio(jogoId, estadioId) {
 
 
 
-// Função para alterar imagem do time
-function alterarImagemTime(jogoId, estadioId, timeId) {
-    const jogo = dados.jogos.find(j => j.id === jogoId);
-    if (!jogo) return;
-    
-    const estadio = jogo.estadios.find(e => e.id === estadioId);
-    if (!estadio) return;
-    
-    const time = estadio.times.find(t => t.id === timeId);
-    if (!time) return;
-    
-    const novaImagem = prompt("URL da nova imagem (deixe em branco para padrão):", time.imagem);
-    if (novaImagem !== null) {
-        time.imagem = novaImagem;
-        carregarTimesDoEstadio(jogoId, estadioId);
-        alert("Imagem atualizada!");
-    }
-}
 // Função para ver detalhes do time
 function verDetalhesTime(jogoId, estadioId, timeId) {
     const jogo = dados.jogos.find(j => j.id === jogoId);
@@ -2686,17 +2874,7 @@ function verLivesDoTime(jogoId, estadioId, timeId) {
     mostrarSecao('lives');
     carregarLivesDoTime(jogoId, estadioId, timeId);
 }
-function recarregarListaTimesAtual() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const jogoId = parseInt(urlParams.get('jogo'));
-    const estadioId = parseInt(urlParams.get('estadio'));
 
-    if (jogoId && estadioId && document.getElementById('lista-times').innerHTML.includes('Times - ')) {
-        carregarTimesDoEstadio(jogoId, estadioId);
-    } else {
-        carregarTimes();
-    }
-}
 ////////////
 ////////////
 ////////////  live.js
@@ -3567,11 +3745,7 @@ Digite o número:`);
     return { layout, colunas, tamanhoCard, altura };
 }
 
-// ===== FUNÇÃO AUXILIAR - SALVAR E ATUALIZAR =====
-function salvarEAtualizar(jogoId, estadioId, timeId) {
-    salvarDados();
-    carregarLivesDoTime(jogoId, estadioId, timeId);
-}
+
 
 ////////////
 ////////////
@@ -4137,42 +4311,7 @@ function calcularMeritoMaximoAposta(usuario) {
     // Mérito máximo = mérito atual * 2 (pode apostar até o dobro do seu mérito)
     return usuario.merito * 2;
 }
-function atualizarMerito(usuario, tipoAcao, sucesso) {
-    let pontos = 0;
-    
-    switch(tipoAcao) {
-        case 'desafio_cumprido':
-            pontos = sucesso ? 50 : -30;
-            if (sucesso) usuario.desafiosCumpridos++;
-            else usuario.desafiosFalhados++;
-            break;
-            
-        case 'pagamento_realizado':
-            pontos = 100;
-            usuario.pagamentosRealizados++;
-            break;
-            
-        case 'pagamento_pendente':
-            pontos = -150; // Penalidade alta por não pagar
-            usuario.pagamentosPendentes++;
-            break;
-            
-        case 'aposta_ganha':
-            pontos = 25;
-            break;
-            
-        case 'aposta_perdida':
-            pontos = -10;
-            break;
-            
-        case 'desafio_criado':
-            pontos = 5;
-            break;
-    }
-    
-    usuario.merito = Math.max(0, usuario.merito + pontos);
-    return pontos;
-}
+
 // No merito.js, substituir a função verPerfil por:
 function verPerfil() {
     verPerfilCompleto(); // Usar a nova função completa
@@ -4365,47 +4504,6 @@ function mostrarNotificacao(mensagem, tipo = 'info', targetUser = null) {
 
 
 
-function atualizarIndicadoresApostas() {
-    const videoInfos = document.querySelectorAll('.video-info');
-
-    videoInfos.forEach(videoInfo => {
-        const cardId = gerarCardId(videoInfo);
-        const salaApostas = dados.apostasUsuarios.find(s => s.cardId === cardId);
-
-        const botaoApostas = videoInfo.querySelector('.botao-apostas-custom');
-        if (botaoApostas) {
-            const temApostasAbertas = salaApostas && salaApostas.apostas.some(a => a.status === 'aberta');
-            const temApostasEncerradas = salaApostas && salaApostas.apostas.some(a => a.status === 'encerrada');
-
-            if (temApostasAbertas || temApostasEncerradas) {
-                botaoApostas.classList.add('with-red-dot');
-            } else {
-                botaoApostas.classList.remove('with-red-dot');
-            }
-        }
-    });
-}
-// ===== ATUALIZAR INDICADORES DE DESAFIOS (NOVO - SIMÉTRICO A APOSTAS) =====
-function atualizarIndicadoresDesafios() {
-    const videoInfos = document.querySelectorAll('.video-info');
-
-    videoInfos.forEach(videoInfo => {
-        const cardId = gerarCardId(videoInfo);
-        const salaDesafios = dados.desafiosUsuarios.find(s => s.cardId === cardId);
-
-        const botaoDesafios = videoInfo.querySelector('.botao-desafios-custom');
-        if (botaoDesafios) {
-            const temDesafiosAbertos = salaDesafios && salaDesafios.desafios.some(d => d.status === 'aberto');
-            const temDesafiosEncerrados = salaDesafios && salaDesafios.desafios.some(d => d.status === 'encerrado');
-
-            if (temDesafiosAbertos || temDesafiosEncerrados) {
-                botaoDesafios.classList.add('with-red-dot');
-            } else {
-                botaoDesafios.classList.remove('with-red-dot');
-            }
-        }
-    });
-}
 
 // ===== MODAL DE APOSTAS =====
 function abrirModalApostas(videoInfo) {
@@ -4462,135 +4560,7 @@ function abrirModalApostas(videoInfo) {
         }
     });
 }
-// ===== ATUALIZAÇÃO NA EXIBIÇÃO DAS APOSTAS =====
-function atualizarConteudoModalApostas(content, cardId, sala, videoInfo) {
-    // Filtrar apostas por mérito apenas se usuário estiver logado
-    const apostasFiltradas = usuarioLogado ? 
-        sala.apostas.filter(aposta => {
-            const criador = dados.usuarios.find(u => u.nome === aposta.criador);
-            return criador && criador.merito === usuarioLogado.merito;
-        }) : 
-        sala.apostas; // Usuários não logados veem todas as apostas
-    
-    const chat = dados.chats.find(c => c.cardId === cardId) || { messages: [], voiceParticipants: [] };
-    const hasUnreadMessages = chat.messages.some(m => !m.readBy?.includes(usuarioLogado?.nome));
-    const hasVoiceParticipants = chat.voiceParticipants?.length > 0;
 
-    content.innerHTML = `
-        <div class="modal-header">
-            <h3>💰 Sala de Apostas</h3>
-            <button class="close-button" aria-label="Fechar modal">X</button>
-        </div>
-        ${usuarioLogado ? `
-            <div class="user-info">
-                <div class="user-details">
-                    <span>👤 ${usuarioLogado.nome}</span>
-                    <span>Email: ${usuarioLogado.email}</span>
-                    <span>Pontos: ${usuarioLogado.merito}</span>
-                    ${usuarioLogado.contaBancaria ? `<span>Conta: ${usuarioLogado.contaBancaria}</span>` : ''}
-                    <span>Chave Pix: ${usuarioLogado.chavePix}</span>
-                </div>
-                <button class="logout-button" onclick="logout()">Sair</button>
-            </div>
-        ` : `
-            <div class="user-info">
-                <div class="user-details">
-                    <span>👤 Visitante</span>
-                    <span>💡 Você pode ver apostas e participar de apostas de até 50 pontos sem login</span>
-                    <button class="login-button" onclick="abrirFormularioLoginApostas('${cardId}')">Fazer Login</button>
-                </div>
-            </div>
-        `}
-        <div class="apostas-options">
-            ${usuarioLogado ? `
-                <button class="create-bet-button" onclick="abrirFormularioCriarAposta('${cardId}')">🎯 Criar Nova Aposta</button>
-            ` : `
-                <button class="create-bet-button disabled" onclick="mostrarNotificacao('Faça login para criar apostas', 'erro')">🎯 Criar Nova Aposta</button>
-            `}
-            <button class="view-bets-button ${apostasFiltradas.length > 0 ? 'with-red-dot' : ''}" onclick="mostrarApostasExistentes('${cardId}')">📋 Ver Apostas (${apostasFiltradas.length})</button>
-            ${usuarioLogado ? `
-                <button class="open-chat-button ${hasUnreadMessages || hasVoiceParticipants ? 'with-red-dot' : ''}" onclick="abrirChat('${cardId}')">💬 Abrir Chat</button>
-            ` : ''}
-        </div>
-        <div class="apostas-list hidden" id="apostas-list-${cardId}">
-            <h4>🎲 Apostas Ativas (${apostasFiltradas.length})</h4>
-            ${apostasFiltradas.length === 0 ?
-                '<p class="no-apostas">Nenhuma aposta ativa' + (usuarioLogado ? ' com seu mérito' : '') + '</p>' :
-                apostasFiltradas.map(aposta => {
-                    const participacao = usuarioLogado ? aposta.participantes.find(p => p.usuario === usuarioLogado.nome) : null;
-                    const isParticipating = !!participacao;
-                    const winner = aposta.status === 'encerrada' ? aposta.participantes.find(p => p.opcao === aposta.opcaoVencedora) : null;
-                    const winnerUser = winner ? dados.usuarios.find(u => u.nome === winner.usuario) : null;
-                    const isWinner = winner && winner.usuario === usuarioLogado?.nome;
-                    const isLoser = isParticipating && !isWinner && aposta.status === 'encerrada';
-                    const comprovanteEnviado = aposta.comprovantes?.some(c => c.usuario === usuarioLogado?.nome);
-
-                    let resultado = '';
-                    if (aposta.status === 'encerrada' && isParticipating) {
-                        resultado = isWinner ?
-                            '<p class="resultado-ganhou">🎉 Você ganhou!</p>' :
-                            `<p class="resultado-perdeu">😔 Você perdeu. Envie ${aposta.valor} pontos via Pix para ${winnerUser?.chavePix || 'indefinido'} (vencedor: ${winner?.usuario || 'indefinido'}).</p>`;
-                    }
-
-                    return `
-                        <div class="aposta-card">
-                            <div class="aposta-info">
-                                <strong>${aposta.titulo}</strong>
-                                ${isParticipating ? `<p class="participacao">✅ Você está participando (Opção: ${participacao.opcao})</p>` : ''}
-                                ${aposta.descricao ? `<p class="aposta-descricao">${aposta.descricao}</p>` : ''}
-                                ${aposta.dataEncerramento ? `<small class="aposta-encerramento">Encerra em: ${new Date(aposta.dataEncerramento).toLocaleString()}</small>` : ''}
-                                <p>Opções: ${aposta.opcoes.join(', ')}</p>
-                                <p>Valor: ${aposta.valor} pontos</p>
-                                <p>Participantes: ${aposta.participantes.length}</p>
-                                <small>Criado por: ${aposta.criador} em ${aposta.dataCriacao}</small>
-                                ${resultado}
-                                ${aposta.status === 'encerrada' && winnerUser ? `<p>Chave Pix do vencedor: ${winnerUser.chavePix}</p>` : ''}
-                            </div>
-                            <div class="aposta-actions">
-                                ${aposta.status === "aberta" ? `
-                                    ${!usuarioLogado && aposta.valor <= 50 ? `
-                                        <button class="participar-button" onclick="abrirFormularioParticiparApostaVisitante('${cardId}', ${aposta.id})">Participar</button>
-                                    ` : usuarioLogado ? `
-                                        <button class="participar-button" onclick="abrirFormularioParticiparAposta('${cardId}', ${aposta.id})">Participar</button>
-                                    ` : `
-                                        <button class="participar-button disabled" onclick="mostrarNotificacao('Faça login para apostar mais de 50 pontos', 'erro')">Participar</button>
-                                    `}
-                                    ${aposta.criador === usuarioLogado?.nome ? `
-                                        <button class="encerrar-button" onclick="abrirFormularioEncerrarAposta('${cardId}', ${aposta.id})">Encerrar</button>
-                                    ` : ''}
-                                ` : `
-                                    <p class="encerrada">❌ Encerrada</p>
-                                    <p>Vencedor: ${aposta.opcaoVencedora || 'Não definido'}</p>
-                                    ${isLoser && !comprovanteEnviado ? `
-                                        <div class="comprovante-form">
-                                            <label for="comprovante-${aposta.id}">Comprovante de Pagamento:</label>
-                                            <input type="text" id="comprovante-${aposta.id}" placeholder="Insira o ID da transação">
-                                            <button onclick="enviarComprovantePagamento('${cardId}', ${aposta.id})">Enviar Comprovante</button>
-                                        </div>
-                                    ` : ''}
-                                    ${comprovanteEnviado ? `<p>Comprovante enviado: ${aposta.comprovantes.find(c => c.usuario === usuarioLogado.nome)?.comprovante}</p>` : ''}
-                                    ${(aposta.criador === usuarioLogado?.nome || isWinner) ? `
-                                        <div class="comprovantes-list">
-                                            <h5>Comprovantes Recebidos:</h5>
-                                            ${aposta.comprovantes?.length > 0 ? aposta.comprovantes.map(c => `
-                                                <p>${c.usuario}: ${c.comprovante} (${c.status}) - ${c.data}</p>
-                                            `).join('') : '<p>Nenhum comprovante recebido.</p>'}
-                                        </div>
-                                    ` : ''}
-                                `}
-                            </div>
-                        </div>
-                    `;
-                }).join('')
-            }
-        </div>
-    `;
-    
-    content.querySelector('.close-button').addEventListener('click', () => {
-        content.closest('.modal-apostas').remove();
-    });
-    console.log(`Modal rendered for cardId=${cardId}, apostas count=${apostasFiltradas.length}`);
-}
 // ===== PARTICIPAÇÃO PARA VISITANTES (ATÉ 50 PONTOS) =====
 function abrirFormularioParticiparApostaVisitante(cardId, apostaId) {
     const sala = dados.apostasUsuarios.find(s => s.cardId === cardId);
@@ -7017,539 +6987,7 @@ header button:hover {
     }
 `;
 document.head.appendChild(style);
-/*
-// modalChatJogo.js
-class ModalChatJogo {
-    constructor(jogoId, jogoNome) {
-        this.jogoId = jogoId;
-        this.jogoNome = jogoNome;
-        this.salaId = `jogo-${jogoId}`;
-        this.peers = new Map();
-        this.localStream = null;
-        this.isAudioEnabled = false;
-        this.socket = null;
-        this.init();
-    }
 
-    init() {
-        this.createModal();
-        this.initializeSocket();
-    }
-
-    initializeSocket() {
-        // Verificar se o socket global existe
-        if (typeof socket !== 'undefined' && socket) {
-            this.socket = socket;
-            this.setupSocketListeners();
-            this.joinRoom();
-        } else {
-            // Tentar inicializar o socket
-            this.initializeSocketConnection();
-        }
-    }
-
-    initializeSocketConnection() {
-        // Inicializar conexão Socket.IO se não existir
-        try {
-            this.socket = io();
-            this.setupSocketListeners();
-            this.joinRoom();
-            
-            // Salvar no escopo global para reutilização
-            window.socket = this.socket;
-            
-        } catch (error) {
-            console.error('Erro ao conectar com Socket.IO:', error);
-            this.showError('Erro de conexão. Recarregue a página e tente novamente.');
-        }
-    }
-
-    setupSocketListeners() {
-        if (!this.socket) {
-            console.error('Socket não disponível');
-            return;
-        }
-
-        // Listeners do Socket.IO para chat de jogo
-        this.socket.on('chat-jogo-message', (data) => {
-            this.displayMessage(data);
-        });
-
-        this.socket.on('chat-jogo-users-update', (data) => {
-            this.updateUsersList(data.users);
-        });
-
-        this.socket.on('chat-jogo-history', (data) => {
-            this.loadChatHistory(data.messages);
-        });
-
-        // WebRTC Signaling
-        this.socket.on('webrtc-offer', (data) => this.handleOffer(data));
-        this.socket.on('webrtc-answer', (data) => this.handleAnswer(data));
-        this.socket.on('webrtc-ice-candidate', (data) => this.handleICECandidate(data));
-        this.socket.on('user-joined-voice', (data) => this.handleUserJoinedVoice(data));
-        this.socket.on('user-left-voice', (data) => this.handleUserLeftVoice(data));
-
-        // Listeners de conexão
-        this.socket.on('connect', () => {
-            console.log('Conectado ao servidor Socket.IO');
-            this.updateConnectionStatus(true);
-        });
-
-        this.socket.on('disconnect', () => {
-            console.log('Desconectado do servidor Socket.IO');
-            this.updateConnectionStatus(false);
-        });
-
-        this.socket.on('connect_error', (error) => {
-            console.error('Erro de conexão Socket.IO:', error);
-            this.updateConnectionStatus(false);
-        });
-    }
-
-    updateConnectionStatus(connected) {
-        const statusElement = document.getElementById('connection-status');
-        if (!statusElement) return;
-
-        if (connected) {
-            statusElement.innerHTML = '🟢 Conectado';
-            statusElement.style.color = '#28a745';
-        } else {
-            statusElement.innerHTML = '🔴 Desconectado';
-            statusElement.style.color = '#dc3545';
-        }
-    }
-
-    showError(message) {
-        const messagesContainer = document.getElementById('chat-messages');
-        if (messagesContainer) {
-            messagesContainer.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: #dc3545;">
-                    <div>❌ ${message}</div>
-                    <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        Recarregar Página
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    createModal() {
-        // Remove modal existente se houver
-        const existingModal = document.getElementById('modal-chat-jogo');
-        if (existingModal) existingModal.remove();
-
-        const modalHTML = `
-        <div id="modal-chat-jogo" class="modal-chat-jogo" style="
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; max-width: 600px; height: 70vh;
-            background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            z-index: 10000; display: flex; flex-direction: column;
-            font-family: Arial, sans-serif;
-        ">
-            <!-- Header -->
-            <div style="padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #007bff; color: white; border-radius: 12px 12px 0 0;">
-                <div>
-                    <h3 style="margin: 0; font-size: 1.2em;">💬 Chat - ${this.jogoNome}</h3>
-                    <div id="connection-status" style="font-size: 0.7em; opacity: 0.9;">🟢 Conectando...</div>
-                </div>
-                <button id="close-chat-modal" style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer;">×</button>
-            </div>
-
-            <!-- Content -->
-            <div style="flex: 1; display: flex; height: calc(100% - 120px);">
-                <!-- Lista de Usuários -->
-                <div style="width: 200px; border-right: 1px solid #eee; padding: 10px; background: #f8f9fa;">
-                    <h4 style="margin: 0 0 10px 0; color: #555;">👥 Online</h4>
-                    <div id="chat-users-list" style="font-size: 0.9em;">
-                        <div style="padding: 5px; color: #28a745;">● Você</div>
-                    </div>
-                </div>
-
-                <!-- Área do Chat -->
-                <div style="flex: 1; display: flex; flex-direction: column;">
-                    <!-- Mensagens -->
-                    <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; background: white;">
-                        <div style="text-align: center; padding: 20px; color: #666;">
-                            Conectando ao chat...
-                        </div>
-                    </div>
-                    
-                    <!-- Controles de Áudio -->
-                    <div style="padding: 10px; border-top: 1px solid #eee; background: #f8f9fa; display: flex; gap: 10px; align-items: center;">
-                        <button id="toggle-audio" style="padding: 8px 12px; border: 1px solid #dc3545; background: #dc3545; color: white; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
-                            🎤 Ativar Voz
-                        </button>
-                        <div id="audio-status" style="font-size: 0.8em; color: #666;">
-                            Áudio: Desativado
-                        </div>
-                    </div>
-
-                    <!-- Input de Mensagem -->
-                    <div style="padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
-                        <input type="text" id="chat-message-input" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em;">
-                        <button id="send-message" style="padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
-                            Enviar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="modal-chat-backdrop" style="
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 9999;
-        "></div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        this.setupEventListeners();
-    }
-
-    setupEventListeners() {
-        // Fechar modal
-        document.getElementById('close-chat-modal').onclick = () => this.close();
-        document.getElementById('modal-chat-backdrop').onclick = () => this.close();
-
-        // Enviar mensagem
-        document.getElementById('send-message').onclick = () => this.sendMessage();
-        document.getElementById('chat-message-input').onkeypress = (e) => {
-            if (e.key === 'Enter') this.sendMessage();
-        };
-
-        // Controle de áudio
-        document.getElementById('toggle-audio').onclick = () => this.toggleAudio();
-    }
-
-    joinRoom() {
-        if (!this.socket || !this.socket.connected) {
-            console.error('Socket não conectado');
-            return;
-        }
-
-        // Entrar na sala do jogo
-        this.socket.emit('join-jogo-chat', {
-            jogoId: this.jogoId,
-            salaId: this.salaId,
-            usuario: this.getUsuarioAtual()
-        });
-
-        // Solicitar histórico
-        this.socket.emit('request-jogo-chat-history', { salaId: this.salaId });
-    }
-
-    getUsuarioAtual() {
-        // Tenta obter o usuário de diferentes fontes
-        if (typeof usuarioAtual !== 'undefined' && usuarioAtual) {
-            return usuarioAtual.nome || 'Anônimo';
-        }
-        
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            return currentUser.nome || 'Anônimo';
-        }
-        
-        return 'Anônimo';
-    }
-
-    sendMessage() {
-        if (!this.socket || !this.socket.connected) {
-            this.showError('Não conectado ao servidor. Tente novamente.');
-            return;
-        }
-
-        const input = document.getElementById('chat-message-input');
-        const message = input.value.trim();
-        
-        if (!message) return;
-
-        this.socket.emit('chat-jogo-message', {
-            salaId: this.salaId,
-            mensagem: message,
-            usuario: this.getUsuarioAtual(),
-            jogoId: this.jogoId
-        });
-
-        input.value = '';
-    }
-
-    displayMessage(data) {
-        const messagesContainer = document.getElementById('chat-messages');
-        if (!messagesContainer) return;
-
-        // Limpar mensagem de "conectando" se for a primeira mensagem
-        if (messagesContainer.children.length === 1 && 
-            messagesContainer.children[0].textContent.includes('Conectando')) {
-            messagesContainer.innerHTML = '';
-        }
-
-        const messageEl = document.createElement('div');
-        messageEl.style.padding = '8px 0';
-        messageEl.style.borderBottom = '1px solid #f0f0f0';
-        
-        const time = new Date(data.data).toLocaleTimeString();
-        messageEl.innerHTML = `
-            <strong style="color: #007bff;">${data.usuario}</strong>
-            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">${time}</span>
-            <div style="margin-top: 2px; color: #333;">${this.escapeHtml(data.mensagem)}</div>
-        `;
-
-        messagesContainer.appendChild(messageEl);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    loadChatHistory(messages) {
-        const messagesContainer = document.getElementById('chat-messages');
-        if (!messagesContainer) return;
-
-        messagesContainer.innerHTML = '';
-        
-        if (messages.length === 0) {
-            messagesContainer.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: #666;">
-                    Nenhuma mensagem ainda. Seja o primeiro a conversar!
-                </div>
-            `;
-            return;
-        }
-        
-        messages.forEach(message => this.displayMessage(message));
-    }
-
-    updateUsersList(users) {
-        const usersList = document.getElementById('chat-users-list');
-        if (!usersList) return;
-
-        const currentUser = this.getUsuarioAtual();
-        usersList.innerHTML = `<div style="padding: 5px; color: #28a745;">● ${currentUser}</div>`;
-        
-        users.forEach(user => {
-            if (user !== currentUser) {
-                const userEl = document.createElement('div');
-                userEl.style.padding = '5px';
-                userEl.style.display = 'flex';
-                userEl.style.alignItems = 'center';
-                userEl.style.gap = '5px';
-                userEl.innerHTML = `
-                    <span style="color: #28a745;">●</span>
-                    <span>${user}</span>
-                    <span id="voice-indicator-${user}" style="margin-left: auto; font-size: 0.8em; color: #007bff; display: none;">🎤</span>
-                `;
-                usersList.appendChild(userEl);
-            }
-        });
-    }
-
-    async toggleAudio() {
-        if (!this.socket || !this.socket.connected) {
-            this.showError('Não conectado ao servidor. Ative a conexão primeiro.');
-            return;
-        }
-
-        const button = document.getElementById('toggle-audio');
-        const status = document.getElementById('audio-status');
-
-        if (!this.isAudioEnabled) {
-            try {
-                // Verificar permissões primeiro
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Navegador não suporta acesso ao microfone');
-                }
-
-                this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }, 
-                    video: false 
-                });
-                
-                this.isAudioEnabled = true;
-                button.innerHTML = '🎤 Desativar Voz';
-                button.style.background = '#28a745';
-                button.style.borderColor = '#28a745';
-                status.innerHTML = 'Áudio: Ativado';
-                status.style.color = '#28a745';
-
-                // Notificar outros usuários
-                this.socket.emit('join-voice-chat', {
-                    salaId: this.salaId,
-                    usuario: this.getUsuarioAtual()
-                });
-
-            } catch (error) {
-                console.error('Erro ao acessar microfone:', error);
-                this.showError('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
-            }
-        } else {
-            // Desativar áudio
-            this.deactivateAudio();
-        }
-    }
-
-    deactivateAudio() {
-        if (this.localStream) {
-            this.localStream.getTracks().forEach(track => track.stop());
-            this.localStream = null;
-        }
-
-        // Desconectar de todos os peers
-        this.peers.forEach(peer => peer.close());
-        this.peers.clear();
-
-        this.isAudioEnabled = false;
-        
-        const button = document.getElementById('toggle-audio');
-        const status = document.getElementById('audio-status');
-        
-        if (button) {
-            button.innerHTML = '🎤 Ativar Voz';
-            button.style.background = '#dc3545';
-            button.style.borderColor = '#dc3545';
-        }
-        
-        if (status) {
-            status.innerHTML = 'Áudio: Desativado';
-            status.style.color = '#666';
-        }
-
-        // Notificar outros usuários
-        if (this.socket) {
-            this.socket.emit('leave-voice-chat', {
-                salaId: this.salaId,
-                usuario: this.getUsuarioAtual()
-            });
-        }
-    }
-
-    // ... (restante dos métodos WebRTC permanecem iguais)
-
-    close() {
-        // Sair da sala
-        if (this.socket) {
-            this.socket.emit('leave-jogo-chat', {
-                salaId: this.salaId,
-                usuario: this.getUsuarioAtual()
-            });
-        }
-
-        // Sair do chat de voz se estiver ativo
-        this.deactivateAudio();
-
-        // Remover listeners do socket
-        if (this.socket) {
-            this.socket.off('chat-jogo-message');
-            this.socket.off('chat-jogo-users-update');
-            this.socket.off('chat-jogo-history');
-            this.socket.off('webrtc-offer');
-            this.socket.off('webrtc-answer');
-            this.socket.off('webrtc-ice-candidate');
-            this.socket.off('user-joined-voice');
-            this.socket.off('user-left-voice');
-        }
-
-        // Remover modal
-        const modal = document.getElementById('modal-chat-jogo');
-        const backdrop = document.getElementById('modal-chat-backdrop');
-        if (modal) modal.remove();
-        if (backdrop) backdrop.remove();
-
-        // Limpar referência
-        window.modalChatAtual = null;
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-}
-
-// Função global para abrir o chat do jogo
-function entrarSalaJogo(jogoId) {
-    const jogo = window.dados?.jogos?.find(j => j.id === jogoId);
-    if (!jogo) {
-        alert('Jogo não encontrado');
-        return;
-    }
-
-    // Fechar modal existente se houver
-    if (window.modalChatAtual) {
-        window.modalChatAtual.close();
-    }
-
-    // Criar nova instância do modal
-    window.modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
-}
-
-// Função para abrir o chat do jogo (chamada pelo botão)
-function entrarSalaJogo(jogoId) {
-    const jogo = dados.jogos.find(j => j.id === jogoId);
-    if (!jogo) return;
-
-    // Fechar modal existente se houver
-    if (modalChatAtual) {
-        modalChatAtual.close();
-    }
-
-    modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
-}
-
-
-// globalChatInjetado.js - Adicionar esta função
-
-function entrarSalaJogo(jogoId) {
-    const jogo = dados.jogos.find(j => j.id === jogoId);
-    if (!jogo) {
-        mostrarNotificacao('Jogo não encontrado', 'erro');
-        return;
-    }
-
-    // Fechar modal existente se houver
-    if (typeof window.modalChatAtual !== 'undefined' && window.modalChatAtual) {
-        window.modalChatAtual.close();
-    }
-
-    // Criar nova instância do modal
-    window.modalChatAtual = new ModalChatJogo(jogoId, jogo.nome);
-}
-
-
-// Inicialização segura do Socket.IO (adicionar no main.js ou no início do script)
-function initializeSocketIO() {
-    if (typeof io === 'undefined') {
-        console.error('Socket.IO não carregado. Verifique se o script foi incluído.');
-        return null;
-    }
-    
-    try {
-        const socket = io();
-        
-        socket.on('connect', () => {
-            console.log('✅ Conectado ao servidor Socket.IO');
-        });
-        
-        socket.on('disconnect', () => {
-            console.log('❌ Desconectado do servidor Socket.IO');
-        });
-        
-        socket.on('connect_error', (error) => {
-            console.error('❌ Erro de conexão Socket.IO:', error);
-        });
-        
-        return socket;
-    } catch (error) {
-        console.error('❌ Erro ao inicializar Socket.IO:', error);
-        return null;
-    }
-}
-
-// Inicializar automaticamente se não existir
-if (typeof socket === 'undefined') {
-    window.socket = initializeSocketIO();
-}
-
-
-*/
 
 
 // ===== SISTEMA DE SESSÃO UNIFICADO =====
@@ -7781,14 +7219,7 @@ function configurarChavePix() {
     }
 }
 // ===== INTERFACE DE USUÁRIO =====
-function atualizarInterfaceLogin() {
-    atualizarMenuPerfil();
-    
-    const floatingMenu = document.getElementById('loginFloating');
-    const overlay = document.getElementById('overlay');
-    if (floatingMenu) floatingMenu.classList.remove('show');
-    if (overlay) overlay.classList.remove('show');
-}
+
 function toggleProfileMenu() {
     const floatingMenu = document.getElementById('loginFloating');
     const overlay = document.getElementById('overlay');
@@ -7801,41 +7232,6 @@ function toggleProfileMenu() {
         atualizarMenuPerfil();
         if (floatingMenu) floatingMenu.classList.add('show');
         if (overlay) overlay.classList.add('show');
-    }
-}
-function atualizarMenuPerfil() {
-    const floatingMenu = document.getElementById('loginFloating');
-    const profileIcon = document.getElementById('profileIcon');
-    
-    if (!floatingMenu || !profileIcon) return;
-    
-    if (usuarioLogado || streamerLogado) {
-        const usuario = usuarioLogado || streamerLogado;
-        const tipo = usuarioLogado ? '👤 Usuário' : '🎥 Streamer';
-        
-        profileIcon.textContent = usuarioLogado ? '👤' : '🎥';
-        profileIcon.classList.add('logged-in');
-        
-        floatingMenu.innerHTML = `
-            <div class="user-info">
-                <p class="user-name">${usuario.nome}</p>
-                <p class="user-merito">${tipo} | Mérito: ${usuario.merito}</p>
-            </div>
-            <div class="user-actions">
-                <button class="btn-profile" onclick="verPerfilCompleto(); toggleProfileMenu()">Ver Perfil</button>
-                <button class="btn-pix" onclick="configurarChavePix(); toggleProfileMenu()">Configurar PIX</button>
-                <button class="btn-logout" onclick="logout(); toggleProfileMenu()">Sair</button>
-            </div>
-        `;
-    } else {
-        profileIcon.textContent = '👤';
-        profileIcon.classList.remove('logged-in');
-        
-        floatingMenu.innerHTML = `
-            <div class="user-actions">
-                <button class="btn-login" onclick="fazerLogin(); toggleProfileMenu()">Fazer Login</button>
-            </div>
-        `;
     }
 }
 // ===== FUNÇÕES AUXILIARES =====

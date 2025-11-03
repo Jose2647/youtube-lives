@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="WebRTC code samples">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
+    <title>WebRTC Voice & Text Chat</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="../../../css/main.css"/>
+    <link rel="stylesheet" href="css/main.css"/>
+    
+    <style>
+        /* Estilos básicos para o chat */
+        #chatContainer {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 400px;
+            /* width: 90vw; opcional para mobile */
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            margin: 20px auto; /* Centraliza */
+        }
+        #messages {
+            flex-grow: 1;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #messages p {
+            margin: 5px 0;
+        }
+        #video-streams {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        /* Oculta o vídeo, mantendo o elemento para o stream de áudio */
+        .video-hidden {
+            width: 1px !important; 
+            height: 1px !important;
+            display: none; 
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="container">
+    <h1>WebRTC Voice & Text Chat</h1>
+
+    <p>Comunicação P2P de Áudio e Texto via WebRTC.</p>
+
+    <div id="video-streams">
+        <video id="localVideo" playsinline autoplay muted class="video-hidden"></video>
+        <video id="remoteVideo" playsinline autoplay class="video-hidden"></video>
+    </div>
+
+    <div class="box">
+        <button id="startButton">Start (Obter Áudio)</button>
+        <button id="callButton">Call</button>
+        <button id="hangupButton">Hang Up</button>
+    </div>
+
+    <div id="chatContainer">
+        <h3>Chat de Texto P2P</h3>
+        <div id="messages">
+            </div>
+        <input type="text" id="messageInput" placeholder="Digite sua mensagem..." disabled>
+        
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <button id="sendButton" disabled style="flex-grow: 1;">Enviar Texto</button>
+            
+            <button id="sendCustomDataButton"  style="flex-grow: 1;">Enviar Objeto Customizado</button> 
+        </div>
+    </div>
+    
+    <p>Verifique o console para logs de conexão.</p>
+
+    <a href="https://github.com/webrtc/samples/tree/gh-pages/src/content/peerconnection/pc1"
+       title="View source for this page on GitHub" id="viewSource">View source on GitHub</a>
+
+</div>
+
+
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<script src="js/main.js" defer></script>
+<script src="../../../js/lib/ga.js"></script>
+</body>
+</html>
