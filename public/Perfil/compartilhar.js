@@ -113,11 +113,9 @@ const shareUrl = data.inviteCode
     ? `${window.location.origin}/invite/${data.inviteCode}`
     : data.inviteLink;
 */
-const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000'
-    : 'https://youtube-lives.onrender.com';
-
-let shareUrl = data.inviteLink || `${baseUrl}/invite/${data.inviteCode}`;
+// Usa preferencialmente o inviteLink que veio do backend (já correto)
+// Se por algum motivo não vier, usa o inviteCode + domínio fixo
+const shareUrl = data.inviteLink || `https://youtube-lives.onrender.com/invite/${data.inviteCode}`;
 // Tenta usar a Web Share API nativa
 if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
     navigator.share({

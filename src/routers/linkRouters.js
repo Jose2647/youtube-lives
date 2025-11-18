@@ -90,7 +90,11 @@ const user = await User.findOne({ id: decoded.userId });
             liveId: liveId || null
         });
 
-        const inviteLink = `http://localhost:3000/invite/${inviteCode}`;
+        // Monta o link correto automaticamente (localhost ou produção)
+const protocol = req.protocol; // 'http' ou 'https'
+const host = req.get('host'); // 'localhost:3000' ou 'youtube-lives.onrender.com'
+const inviteLink = `${protocol}://${host}/invite/${inviteCode}`;
+        
         res.json({ inviteLink });
     } catch (err) {
         res.status(500).send(err.message);
