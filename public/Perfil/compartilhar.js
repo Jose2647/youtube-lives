@@ -67,57 +67,6 @@ function compartilharAppSintonizadaJogo(jogoId) {
  * @param {object} ids - Um objeto contendo os IDs. Ex: { jogoId: 1, estadioId: 2 }
  * @param {boolean} sync - Se deve ser um link sincronizado.
  */
-/*
-function compartilharLocal(ids = {}, sync = false) {
-    if (!window.usuarioLogado || !window.usuarioLogado.token) {
-        alert('Você precisa estar logado para gerar um link de compartilhamento.');
-        return;
-    }
-
-    const body = { ...ids, sync };
-
-    fetch(`${API_BASE}/generate-invite`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${window.usuarioLogado.token}`
-        },
-        body: JSON.stringify(body)
-    })
-    .then(response => response.json())
-    .then(data => {
-        let shareUrl;
-        
-        if (data.inviteCode) {
-            // Use a URL do invite que redireciona para a aplicação principal
-            shareUrl = `${window.location.origin}/invite/${data.inviteCode}`;
-        } else if (data.inviteLink) {
-            shareUrl = data.inviteLink;
-        } else {
-            throw new Error('Resposta inválida do servidor');
-        }
-
-        // Compartilhar ou copiar
-        if (navigator.share) {
-            navigator.share({
-                title: sync ? 'App Sincronizada' : 'Compartilhar Localização',
-                text: sync ? 'Junte-se a mim no jogo!' : 'Confira esta localização!',
-                url: shareUrl
-            });
-        } else {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                if (typeof mostrarNotificacao === 'function') {
-                    mostrarNotificacao('Link copiado!', 'sucesso');
-                }
-            });
-        }
-    })
-    .catch(err => {
-        console.error('Erro ao compartilhar:', err);
-        alert('Erro ao gerar link de compartilhamento.');
-    });
-}
-*/
 function compartilharLocal(ids = {}, sync = false) {
     if (!window.usuarioLogado || !window.usuarioLogado.token) {
         alert('Você precisa estar logado para gerar um link de compartilhamento.');
@@ -158,11 +107,17 @@ function compartilharLocal(ids = {}, sync = false) {
         }
 
         // Dentro do .then(data => { ... }) depois de montar o shareUrl
+/*
 
 const shareUrl = data.inviteCode 
     ? `${window.location.origin}/invite/${data.inviteCode}`
     : data.inviteLink;
+*/
+const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://youtube-lives.onrender.com';
 
+let shareUrl = data.inviteLink || `${baseUrl}/invite/${data.inviteCode}`;
 // Tenta usar a Web Share API nativa
 if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
     navigator.share({
