@@ -72,7 +72,9 @@ router.post('/generate-invite', async (req, res) => {
         if (!token) return res.status(401).json({ message: 'Autenticação necessária' });
 
         const decoded = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(decoded.userId);
+    //    const user = await User.findById(decoded.userId);
+    // DEPOIS (mude para buscar pelo campo id que é Number)
+const user = await User.findOne({ id: decoded.userId });
         if (!user) return res.status(404).send('Usuário não encontrado');
 
         const { jogoId, estadioId, timeId, liveId } = req.body; // Suporta todos os IDs
@@ -150,3 +152,12 @@ router.get('/invite-hierarchy', async (req, res) => {
 
 
 export default router;
+
+
+/*
+// ANTES (linha ~48)
+const user = await User.findById(decoded.userId);
+
+// DEPOIS (mude para buscar pelo campo id que é Number)
+const user = await User.findOne({ id: decoded.userId });
+*/

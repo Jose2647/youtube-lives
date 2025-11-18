@@ -24,7 +24,7 @@ function compartilharAppSintonizadaJogo(jogoId) {
         return;
     }
 
-    fetch(`${API_BASE}/api/generate-invite`, {
+    fetch(`${API_BASE}/generate-invite`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ function compartilharAppSintonizadaJogo(jogoId) {
  * @param {object} ids - Um objeto contendo os IDs. Ex: { jogoId: 1, estadioId: 2 }
  * @param {boolean} sync - Se deve ser um link sincronizado.
  */
-
+/*
 function compartilharLocal(ids = {}, sync = false) {
     if (!window.usuarioLogado || !window.usuarioLogado.token) {
         alert('Você precisa estar logado para gerar um link de compartilhamento.');
@@ -76,7 +76,7 @@ function compartilharLocal(ids = {}, sync = false) {
 
     const body = { ...ids, sync };
 
-    fetch(`${API_BASE}/api/generate-invite`, {
+    fetch(`${API_BASE}/generate-invite`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -115,5 +115,86 @@ function compartilharLocal(ids = {}, sync = false) {
     .catch(err => {
         console.error('Erro ao compartilhar:', err);
         alert('Erro ao gerar link de compartilhamento.');
+    });
+}
+*/
+function compartilharLocal(ids = {}, sync = false) {
+    if (!window.usuarioLogado || !window.usuarioLogado.token) {
+        alert('Você precisa estar logado para gerar um link de compartilhamento.');
+        return;
+    }
+
+    const body = { ...ids, sync };
+
+    fetch(`${API_BASE}/generate-invite`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${window.usuarioLogado.token}`
+        },
+        body: JSON.stringify(body)
+    })
+    .then(async response => {
+        const text = await response.text();               // ← lê como texto primeiro
+        console.log("Resposta bruta do /generate-invite:", text);
+
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}: ${text || 'Sem corpo'}`);
+        }
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error("Resposta não é JSON válido:", text);
+            throw new Error("Resposta inválida do servidor (não JSON)");
+        }
+
+        return data;
+    })
+    .then(data => {
+        if (!data.inviteCode && !data.inviteLink) {
+            throw new Error('Servidor não retornou inviteCode nem inviteLink');
+        }
+
+        // Dentro do .then(data => { ... }) depois de montar o shareUrl
+
+const shareUrl = data.inviteCode 
+    ? `${window.location.origin}/invite/${data.inviteCode}`
+    : data.inviteLink;
+
+// Tenta usar a Web Share API nativa
+if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
+    navigator.share({
+        title: sync ? 'App Sincronizada – Junte-se a mim!' : 'Vem ver esse jogo ao vivo!',
+        text: sync ? 'Estamos assistindo juntos em tempo real!' : 'Olha que legal esse jogo/estádio/time!',
+        url: shareUrl
+    })
+    .then(() => console.log('Compartilhado com sucesso'))
+    .catch(err => {
+        console.warn('Web Share cancelado ou falhou, copiando para área de transferência...', err);
+        fallbackCopy();
+    });
+} else {
+    // Fallback imediato: copia o link
+    fallbackCopy();
+}
+
+function fallbackCopy() {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        if (typeof mostrarNotificacao === 'function') {
+            mostrarNotificacao('Link copiado para a área de transferência ✅', 'sucesso');
+        } else {
+            alert('Link copiado!\n' + shareUrl);
+        }
+    }).catch(() => {
+        // Último recurso caso até clipboard falhe (raro)
+        prompt('Não foi possível copiar automaticamente. Copie manualmente:', shareUrl);
+    });
+}
+    })
+    .catch(err => {
+        console.error('Erro ao compartilhar:', err);
+        alert('Erro ao gerar link: ' + err.message);
     });
 }
