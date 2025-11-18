@@ -1,131 +1,225 @@
 // src/sockets/webrtcSocket.js
 
-    // src/sockets/webrtcSocket.js
-    
-    // Lista de rooms (simples array para teste; use DB para produção)
-let rooms = ['default_room']; // Inicial com default
+// Usamos um Map para rastrear ativamente quem está em qual sala
+// Map<roomId, Set<socketId>>
+const gameRooms = new Map();
+
+// Adiciona a sala padrão
+gameRooms.set('default_room', new Set());
+
+/**
+ * Notifica todos os sockets sobre a lista atual de salas.
+ */
+const updateRoomsList = (io) => {
+  const activeRooms = Array.from(gameRooms.keys());
+  io.emit('rooms_list', activeRooms);
+  //console.log('[SERVER] Lista de salas atualizada:', activeRooms);
+};
 
 export const setupWebRTCSignaling = (io) => {
-    const gameRooms = new Map(); // Map<gameId, Set<socket.id>>
-/*
-    io.on('connection', (socket) => {
-        let currentRoom = null;
+  io.on('connection', (socket) => {
+  //  //console.log(`🔌 Novo socket conectado: ${socket.id}`);
 
-        console.log(`🔌 Novo socket conectado: ${socket.id}`);
+    // --- Gerenciamento de Salas ---
 
-        // Quando um cliente entra em uma sala (jogo)
-        socket.on('join_room', (gameId) => {
-            if (currentRoom) socket.leave(currentRoom);
+    socket.on('join_room', (roomId) => {
+      if (!roomId) return;
 
-            socket.join(gameId);
-            currentRoom = gameId;
-
-            if (!gameRooms.has(gameId)) {
-                gameRooms.set(gameId, new Set());
-            }
-            gameRooms.get(gameId).add(socket.id);
-
-            console.log(`🎮 Socket ${socket.id} entrou na sala: ${gameId}`);
-
-            // Envia aos outros da sala que um novo peer chegou
-            socket.to(gameId).emit('peer_joined', { peerId: socket.id });
-        });
-
-        // Quando recebe um sinal WebRTC (offer, answer, candidate)
-        socket.on('signal', (message) => {
-            if (!currentRoom) {
-                console.warn(`⚠️ Sinal recebido sem sala definida.`);
-                return;
-            }
-
-            // Adiciona o ID do remetente à mensagem
-            message.from = socket.id;
-
-            // Retransmite para todos os outros da mesma sala
-            socket.to(currentRoom).emit('signal', message);
-        });
-
-        // Quando o peer sai da sala
-        socket.on('disconnect', () => {
-            if (currentRoom && gameRooms.has(currentRoom)) {
-                gameRooms.get(currentRoom).delete(socket.id);
-
-                // Notifica os outros peers da sala
-                socket.to(currentRoom).emit('peer_left', { peerId: socket.id });
-
-                console.log(`❌ Socket ${socket.id} saiu da sala ${currentRoom}`);
-            }
-        });
-    });
-    */
-
-
-
-
-
-io.on('connection', (socket) => {
-  console.log(`🔌 Novo socket conectado: ${socket.id}`);
-
-  // Join room
-  socket.on('join_room', (room) => {
-    socket.join(room);
-    console.log(`🎮 Socket ${socket.id} entrou na sala: ${room}`);
-    // Notifica outros na sala que peer joined
-    socket.to(room).emit('peer_joined', { peerId: socket.id });
-    // Adicione à lista de rooms se nova
-    if (!rooms.includes(room)) {
-      rooms.push(room);
-      io.emit('rooms_list', rooms); // Atualiza todos com nova lista
-    }
-  });
-
-  // Signal forwarding
-  socket.on('signal', (data) => {
-    console.log(`[SERVER] Signal from ${data.from} to ${data.to || 'broadcast'}: ${data.type}`);
-    if (data.to) {
-      io.to(data.to).emit('signal', data);
-    } else {
-      // Broadcast to room if no 'to' (fallback)
-      const room = Array.from(socket.rooms)[1]; // Assume second room is the game room
-      socket.to(room).emit('signal', data);
-    }
-  });
-
-  // Novo: Get rooms list
-  socket.on('get_rooms_list', () => {
-    console.log(`[SERVER] Enviando lista de salas para ${socket.id}: ${rooms}`);
-    socket.emit('rooms_list', rooms);
-  });
-
-  // Novo: Check if room exists
-  socket.on('check_room_exists', (roomName, callback) => {
-    const exists = rooms.includes(roomName);
-    console.log(`[SERVER] Check room ${roomName}: ${exists ? 'exists' : 'not exists'}`);
-    callback(exists);
-  });
-
-  // Novo: Create room (apenas adiciona à lista e join)
-  socket.on('create_room', (roomName) => {
-    if (!rooms.includes(roomName)) {
-      rooms.push(roomName);
-      console.log(`[SERVER] Sala criada: ${roomName}`);
-      io.emit('rooms_list', rooms); // Atualiza todos
-    }
-    // Opcional: join automático do criador
-    socket.join(roomName);
-    socket.to(roomName).emit('peer_joined', { peerId: socket.id });
-  });
-
-  // Disconnect
-  socket.on('disconnect', () => {
-    console.log(`Socket desconectado: ${socket.id}`);
-    // Notifica peers em rooms
-    for (const room of socket.rooms) {
-      if (room !== socket.id) { // Ignora default socket room
-        socket.to(room).emit('peer_left', { peerId: socket.id });
+      // 1. Garante que a sala exista no Map
+      if (!gameRooms.has(roomId)) {
+        gameRooms.set(roomId, new Set());
       }
-    }
-  });
-});
 
+      // 2. Adiciona o socket à sala
+      socket.join(roomId);
+      gameRooms.get(roomId).add(socket.id);
+      //console.log(`🎮 Socket ${socket.id} entrou na sala: ${roomId}`);
+
+      // 3. Pega a lista de peers que JÁ ESTÃO na sala (excluindo ele mesmo)
+      const existingPeerIds = Array.from(gameRooms.get(roomId)).filter(
+        (id) => id !== socket.id
+      );
+
+      // 4. ENVIA APENAS PARA O NOVO SOCKET a lista de peers existentes
+      // O cliente usará isso para criar conexões (Ofertas)
+      if (existingPeerIds.length > 0) {
+        socket.emit('existing_peers_in_room', {
+          roomId: roomId,
+          peerIds: existingPeerIds,
+        });
+        //console.log(`[SERVER] Enviando ${existingPeerIds.length} peers existentes para ${socket.id}`);
+      }
+      
+      // 5. NOTIFICA OS OUTROS PEERS que um novo peer chegou
+      // Eles usarão isso para criar conexões (não-ofertantes)
+      socket.to(roomId).emit('peer_joined', {
+        roomId: roomId,
+        peerId: socket.id,
+      });
+    });
+
+    // NOVO: Handler para 'leave_room'
+    socket.on('leave_room', (roomId) => {
+      handleLeaveRoom(socket, io, roomId);
+    });
+
+    // --- Gerenciamento de Lista de Salas (UI) ---
+
+    socket.on('get_rooms_list', () => {
+      socket.emit('rooms_list', Array.from(gameRooms.keys()));
+    });
+
+    socket.on('check_room_exists', (roomName, callback) => {
+      const exists = gameRooms.has(roomName);
+      //console.log(`[SERVER] Check room ${roomName}: ${exists ? 'exists' : 'not exists'}`);
+      callback(exists);
+    });
+
+    socket.on('create_room', (roomName) => {
+      if (!gameRooms.has(roomName)) {
+        gameRooms.set(roomName, new Set());
+        //console.log(`[SERVER] Sala criada: ${roomName}`);
+        updateRoomsList(io); // Atualiza todos
+      }
+      // (O 'join_room' do cliente cuidará de entrar)
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // --- Sinalização WebRTC ---
+
+    socket.on('signal', (data) => {
+      // Retransmissão simples. O cliente deve sempre prover 'to'
+      if (data.to) {
+        // //console.log(`[SIGNAL] de ${socket.id} para ${data.to} (tipo ${data.type})`);
+        io.to(data.to).emit('signal', { ...data, from: socket.id });
+      } else {
+        console.warn(`[SIGNAL] Sinal de ${socket.id} sem 'to' foi ignorado.`);
+      }
+    });
+
+    /////////////
+    /////////////pagamentos
+    /////////////
+        // --- NOVO: Transferência de Comprovantes ---
+    socket.on('file_metadata', (data) => {
+      // data: { to, fileName, fileSize, fileType, roomId, metadata }
+      if (data.to) {
+        //console.log(`[FILE] Metadata de ${socket.id} para ${data.to}: ${data.fileName}`);
+        io.to(data.to).emit('file_metadata', { 
+          ...data, 
+          from: socket.id 
+        });
+      }
+    });
+
+    socket.on('file_chunk', (data) => {
+      // data: { to, chunk, chunkIndex, totalChunks, fileId }
+      if (data.to) {
+        // Retransmite o chunk para o destinatário
+        io.to(data.to).emit('file_chunk', {
+          ...data,
+          from: socket.id
+        });
+      }
+    });
+
+    socket.on('file_transfer_complete', (data) => {
+      // data: { to, fileId, success }
+      if (data.to) {
+        io.to(data.to).emit('file_transfer_complete', {
+          ...data,
+          from: socket.id
+        });
+      }
+    });
+
+    socket.on('file_transfer_error', (data) => {
+      // data: { to, fileId, error }
+      if (data.to) {
+        io.to(data.to).emit('file_transfer_error', {
+          ...data,
+          from: socket.id
+        });
+      }
+    });
+    
+    /////////////
+    /////////////pagamentos
+    /////////////
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // --- Desconexão ---
+
+    socket.on('disconnect', () => {
+      //console.log(`❌ Socket desconectado: ${socket.id}`);
+      // Itera por TODAS as salas para remover o socket
+      gameRooms.forEach((socketsInRoom, roomId) => {
+        if (socketsInRoom.has(socket.id)) {
+          // Usa a mesma lógica de 'leave_room'
+          handleLeaveRoom(socket, io, roomId, true /* isDisconnecting */);
+        }
+      });
+    });
+    
+  });
+
+  /**
+   * Função helper para lidar com a saída de uma sala (leave ou disconnect)
+   */
+  const handleLeaveRoom = (socket, io, roomId, isDisconnecting = false) => {
+    if (!roomId || !gameRooms.has(roomId)) return;
+
+    const room = gameRooms.get(roomId);
+    if (!room.has(socket.id)) return;
+
+    // 1. Remove o socket da sala
+    if (!isDisconnecting) {
+        socket.leave(roomId);
+    }
+    room.delete(socket.id);
+    //console.log(`[SERVER] Socket ${socket.id} saiu da sala ${roomId}`);
+
+    // 2. Notifica os peers restantes na sala
+    socket.to(roomId).emit('peer_left', {
+      roomId: roomId, // INCLUI O ID DA SALA
+      peerId: socket.id,
+    });
+
+    // 3. Se a sala estiver vazia (e não for a default), remove
+    if (room.size === 0 && roomId !== 'default_room') {
+      gameRooms.delete(roomId);
+      //console.log(`[SERVER] Sala vazia "${roomId}" removida.`);
+      updateRoomsList(io); // Atualiza lista para todos
+    }
+  };
 };
+
+
+
+
+
+///////////
+///////////
+///////////
+///////////
+

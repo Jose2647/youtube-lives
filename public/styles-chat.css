@@ -1,0 +1,255 @@
+/* === CHAT FLUTUANTE SIMPLES === */
+.chat-float-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: #25D366;
+    color: white;
+    border-radius: 50%;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer;
+    z-index: 999;
+    transition: all 0.3s;
+}
+.chat-float-btn:hover {
+    transform: scale(1.1);
+    background: #128C7E;
+}
+.chat-window {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 320px;
+    height: 450px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    z-index: 998;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+.chat-header {
+    background: #25D366;
+    color: white;
+    padding: 12px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.chat-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+.chat-body {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #f4f4f4;
+}
+.chat-footer {
+    padding: 10px;
+    background: white;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid #ddd;
+}
+.chat-footer input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    outline: none;
+}
+.chat-footer button {
+    padding: 10px 16px;
+    background: #25D366;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    background: red;
+}
+.btn-chat { /* Botão genérico de chat */
+    background: #25D366;
+    color: white;
+}
+
+/* === MODAL DE CHAT WEBRTC (TELA CHEIA) === */
+.modal-sala-webrtc {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    color: white;
+    font-family: Arial, sans-serif;
+    pointer-events: auto;
+    touch-action: none;
+    overscroll-behavior: contain;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #333;
+    background: #1a1a1a;
+}
+.modal-header h3 {
+    margin: 0;
+    color: #4caf50;
+    text-align: left; /* Ajustado */
+}
+.modal-header button {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.modal-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: column; /* Força coluna em mobile */
+}
+.col-esquerda {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    border-right: none; /* Removido borda */
+    border-bottom: 1px solid #333; /* Adicionado borda inferior */
+}
+.col-direita {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px; /* Garante altura mínima */
+}
+
+/* === MODAL WEBRTC: CONTEÚDO === */
+.video-container {
+    flex: 1;
+    background: #000;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
+    min-height: 150px; /* Altura mínima */
+}
+.video-participant {
+    background: #333;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    min-width: 150px;
+}
+.btn-audio, .btn-video {
+    flex: 1;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.btn-audio { background: #4caf50; }
+.btn-video { background: #2196f3; }
+
+.section-apostas, .section-desafios {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.section-apostas h4 { margin: 0 0 10px 0; color: #ff9800; }
+.section-desafios h4 { margin: 0 0 10px 0; color: #9c27b0; }
+
+.btn-aposta, .btn-desafio {
+    width: 100%;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.btn-aposta { background: #ff9800; }
+.btn-desafio { background: #9c27b0; }
+
+/* === MODAL WEBRTC: CHAT E PARTICIPANTES === */
+.participantes-header {
+    padding: 15px;
+    border-bottom: 1px solid #333;
+    background: #1a1a1a;
+}
+.participante-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+    border-radius: 5px;
+    background: #2a2a2a;
+    margin: 2px 0;
+}
+.participante-item .status {
+    width: 8px;
+    height: 8px;
+    background: #4caf50;
+    border-radius: 50%;
+}
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #1a1a1a;
+}
+.chat-input-area {
+    padding: 15px;
+    border-top: 1px solid #333;
+    background: #2a2a2a;
+    display: flex;
+    gap: 10px;
+}
+.chat-input-area input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background: #333;
+    color: white;
+}
+.chat-input-area button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+}

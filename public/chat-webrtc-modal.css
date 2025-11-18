@@ -1,0 +1,155 @@
+/* ============================================= */
+/* CSS DE BLINDAGEM DO MODAL WEBRTC      */
+/* ============================================= */
+
+/* Usamos o ID para garantir que SÓ este modal seja afetado */
+#chatWebRTCModalScope {
+    color: #333;
+    font-family: Arial, sans-serif;
+}
+
+#chatWebRTCModalScope h1 {
+    font-size: 24px;
+    color: #222;
+    margin-top: 0;
+}
+#chatWebRTCModalScope h3 {
+    font-size: 18px;
+    color: #444;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+#chatWebRTCModalScope p {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+}
+#chatWebRTCModalScope label {
+    font-size: 14px;
+    font-weight: bold;
+    margin-right: 10px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* --- Inputs e Selects --- */
+#chatWebRTCModalScope select,
+#chatWebRTCModalScope input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Garante que o padding não quebre o layout */
+    margin: 0;
+}
+#chatWebRTCModalScope select {
+    width: auto; /* Deixa o select se ajustar */
+    min-width: 150px;
+    margin-right: 5px;
+}
+#chatWebRTCModalScope input#messageInput {
+    margin-bottom: 10px;
+}
+
+/* --- Estilo Base dos Botões (O principal) --- */
+#chatWebRTCModalScope button {
+    /* Reset básico para anular outros CSS */
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #e0e0e0; /* Cor padrão */
+    color: #333;
+    margin: 5px 2px; /* Espaçamento leve */
+    line-height: 1.4;
+    text-align: center;
+    text-transform: none; /* Remove qualquer text-transform de outros CSS */
+    transition: all 0.2s ease;
+    
+    /* Reset de flex (se outro CSS estiver mexendo) */
+    flex: none;
+    width: auto;
+    height: auto;
+}
+#chatWebRTCModalScope button:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+#chatWebRTCModalScope button:disabled {
+    background-color: #f5f5f5;
+    color: #aaa;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* --- Cores Específicas dos Botões --- */
+#chatWebRTCModalScope button.btn-sucesso,
+#chatWebRTCModalScope button#verPerfilUsuarioButton {
+    background-color: #4CAF50;
+    color: white;
+}
+#chatWebRTCModalScope button.btn-perigo,
+#chatWebRTCModalScope button#leaveRoomButton {
+    background-color: #f44336;
+    color: white;
+}
+#chatWebRTCModalScope button.btn-aviso,
+#chatWebRTCModalScope button#sendShareButton {
+    background-color: #ff9800;
+    color: white;
+}
+#chatWebRTCModalScope button#startButton {
+    background-color: #2196F3;
+    color: white;
+}
+#chatWebRTCModalScope button#joinRoomButton,
+#chatWebRTCModalScope button#createRoomButton,
+#chatWebRTCModalScope button#sendButton,
+#chatWebRTCModalScope button#sendCustomDataButton {
+    background-color: #607D8B; /* Azul-cinza neutro */
+    color: white;
+}
+
+/* --- Containers dos Botões --- */
+#chatWebRTCModalScope .chat-button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+#chatWebRTCModalScope .chat-button-group button {
+    flex-grow: 1; /* Faz os botões dividirem o espaço */
+    margin: 0; /* Remove margem extra */
+}
+#chatWebRTCModalScope .box {
+    margin: 15px 0;
+    padding: 10px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 5px;
+}
+#chatWebRTCModalScope #roomsContainer,
+#chatWebRTCModalScope #usuariosContainer {
+    padding: 10px;
+    background: #f7f7f7;
+    border-radius: 5px;
+}
+
+/* --- Botão de Fechar (do seu JS) --- */
+/* Apenas garantindo que ele não seja afetado */
+button.chat-webrtc-close {
+    position: absolute; 
+    top: 10px; 
+    right: 15px; 
+    background: none !important; /* !important para garantir */
+    border: none !important;
+    font-size: 24px !important; 
+    cursor: pointer; 
+    color: #666 !important;
+    padding: 0 !important;
+    width: auto;
+    height: auto;
+}

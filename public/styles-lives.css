@@ -1,0 +1,276 @@
+        .live-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+
+            
+            
+        }
+        
+        .live-header {
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+            background: rgba(0, 0, 0, 0.2);
+            
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            
+            padding: 2px;
+            gap: 2px;
+        }
+        
+        .layout-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        
+        /* MODO VERTICAL (PADRÃO) - PILARES */
+        .live-section.vertical-mode .cards-do-time-container {
+            display: flex;
+            overflow-x: auto;
+           gap: 0;
+            padding: 0;
+            
+            
+        }
+        
+        .live-section.vertical-mode .cards-do-time {
+            /* min-width: 300px; */ /* <-- REMOVIDO (Passo 1) 
+            background: rgba(255, 255, 255, 0.05);
+            */
+            background: red);
+            
+            border-radius: 8px;
+            /* padding: 10px; */ /* <-- REMOVIDO/MOVIDO (Passo 3) */
+            
+        }
+        
+        /* CARDS EM PILARES (VERTICAIS) DENTRO DE CADA CARDS-DO-TIME */
+        .live-section.vertical-mode .cards-container {
+            display: flex;
+            flex-direction: column;
+            /* overflow-y: auto; */ /* Correção anterior */
+            /* max-height: 600px; */ /* Correção anterior */
+          /*  padding: 10px; 
+          gap: 2px;
+          background: red;
+          */
+            /* <-- ALTERADO DE 10px 0 (Passo 3) */
+            
+        }
+        .live-section{
+        }
+        .vertical-mode{
+          
+        }
+
+
+        /* MODO HORIZONTAL - LINHAS */
+        .live-section.horizontal-mode .cards-do-time-container {
+            display: flex;
+            flex-direction: column;
+            
+       /*  
+            */
+            
+        }
+        
+        .live-section.horizontal-mode .cards-do-time {
+            background: rgba(255, 255, 255, 0.05);
+          /*  border-radius: 8px;
+           padding: 2px;*/
+           
+        }
+        
+        /* CARDS EM LINHA DENTRO DE CADA CARDS-DO-TIME */
+        .live-section.horizontal-mode .cards-container {
+            display: flex;
+            overflow-x: auto;
+          /*  gap: 2px;
+            padding: 2px 0;*/
+            
+        }
+                .cards-container{
+        /*  background: red;*/
+        
+          
+        }
+
+        /* CARD INDIVIDUAL */
+        .card {
+            width: 280px;
+            flex-shrink: 0;
+            background: white;
+            
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+            
+        }
+        
+
+
+        .card-header {
+            background: #2575fc;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .card-iframe {
+            width: 100%;
+            height: 160px;
+            border: none;
+            display: block;
+            transition: all 0.2s ease;
+        }
+
+        .zoom-controls {
+            display: flex;
+            justify-content: center;
+         /*   gap: 15px;*/
+            margin: 20px 0;
+        }
+
+        button {
+            background: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+.instructions {
+    background: rgba(255, 255, 255, 0.9);
+    /* max-width foi removido */
+    margin: 15px 0; /* Alterado de '25px auto' para não centralizar */
+    padding: 20px;
+    border-radius: 0; /* Removido para estética de 100% */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    box-sizing: border-box; /* Garante que o padding não estoure a largura */
+}
+
+      .time-info {
+    background: rgba(255, 255, 255, 0.9);
+    /* background: red;*/
+    border-radius: 0; /* Removido para estética de 100% */
+    padding: 15px;
+    margin: 15px 0; /* Alterado de '15px auto' para não centralizar */
+    /* max-width foi removido */
+    text-align: center;
+    box-sizing: border-box; /* Garante que o padding não estoure a largura */
+}
+
+
+
+        @media (max-width: 480px) {
+            /* Correção anterior (já estava certa) */
+            .live-section.horizontal-mode .card {
+             /* width: 250px;*/
+                
+            }
+            
+            .card-iframe {
+              
+                height: 150px;
+                
+            }
+            
+            h1 {
+             
+                font-size: 1.5rem;
+                
+            }
+            .cards-do-time-container{
+                 
+               }
+               .cards-container{
+                      /*  background: yellow;*/
+                      }
+               .cards-do-time{
+                      }
+        }
+  /* --- Ajuste para Smartphone/Tablet na Orientação Paisagem (Landscape) --- */
+
+/* Aplica-se a telas de até 768px de largura na orientação paisagem */
+
+
+
+
+
+/* Controles de Volume para Iframes */
+.volume-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+    padding: 5px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 4px;
+}
+
+.volume-slider {
+    flex: 1;
+    height: 4px;
+    background: #555;
+    border-radius: 2px;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.volume-slider:hover {
+    opacity: 1;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.mute-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.mute-btn:hover {
+    background: rgba(255,255,255,0.1);
+}

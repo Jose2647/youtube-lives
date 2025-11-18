@@ -1,0 +1,661 @@
+/* ============================================= */
+/* ESTILOS DE MODAIS GERAIS             */
+/* ============================================= */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 14999;
+}
+.modal-custom {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Fundo escuro para fullscreen */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 15000;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.modal-content {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Garante que o header e footer fiquem fixos */
+}
+.modal-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+.modal-header.text-center {
+    text-align: center;
+}
+.modal-title {
+    margin: 0;
+    color: #333; /* Cor padrão, sobreposta por gradientes */
+}
+.modal-header .modal-title {
+    color: white;
+}
+.modal-subtitle {
+    margin: 5px 0 0 0;
+    color: #666;
+    opacity: 0.9;
+}
+.modal-header .modal-subtitle {
+    color: white;
+}
+.modal-body {
+    padding: 20px 25px;
+    overflow-y: auto;
+    flex: 1; /* Faz o body ocupar o espaço disponível */
+    background: #f9f9f9;
+}
+.modal-footer {
+    padding: 15px 25px;
+    background: #f1f1f1;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0 0 15px 15px;
+    text-align: center;
+}
+.modal-btn-fechar {
+    padding: 12px 30px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background 0.2s ease;
+}
+.modal-btn-fechar:hover {
+    background: #d32f2f;
+}
+/* Gradients */
+.gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.gradient-green { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
+.gradient-orange { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
+.gradient-pink { background: linear-gradient(135deg, #E91E63 0%, #C2185B 100%); }
+.gradient-blue { background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); }
+/* Placeholders */
+.modal-placeholder {
+    text-align: center;
+    color: #999;
+    padding: 40px 20px;
+}
+.modal-placeholder .placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+.modal-placeholder h3 {
+    margin: 0 0 10px 0;
+    color: #555;
+}
+/* ============================================= */
+/* ESTILOS DOS HEADERS (HARMONIZADOS)   */
+/* ============================================= */
+/* ESTA É A CLASSE DE HARMONIZAÇÃO */
+.header-widget {
+   position: fixed;
+    top: 10%;
+    z-index: 1000;
+    
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 12px; /* Raio de borda unificado */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+/* Aplicando ao seu menu de login (use no HTML) */
+.header-login {
+    /* Herda de .header-widget */
+    right: 10px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+/* Aplicando ao novo menu principal (já está no JS) */
+.menu-principal-dropdown {
+    /* Herda de .header-widget */
+    left: 10px;
+    padding: 15px; /* Padding um pouco maior para o menu */
+    min-width: 200px;
+}
+/* ============================================= */
+/* ESTILOS DO MENU PRINCIPAL            */
+/* ============================================= */
+.menu-header {
+    text-align: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+.menu-header h3 {
+    margin: 0;
+    color: #333;
+    cursor: pointer;
+}
+.menu-botao {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 15px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    transition: background 0.2s ease;
+    font-size: 15px;
+}
+.menu-botao:hover {
+    background: #f0f0f0;
+}
+.menu-botao-emoji {
+    font-size: 18px;
+    margin-right: 12px;
+}
+.menu-botao-texto {
+    flex: 1;
+    text-align: left;
+}
+.menu-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+.menu-btn-fechar {
+    width: 100%;
+    padding: 8px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.menu-btn-fechar:hover {
+    background: #d32f2f;
+}
+/* ============================================= */
+/* ESTILOS DE RANKING                   */
+/* ============================================= */
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin: 8px 0;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+}
+.ranking-item.current-user {
+    background: #e3f2fd;
+    border: 2px solid #2196F3;
+}
+.ranking-posicao {
+    font-size: 24px;
+    font-weight: bold;
+    margin-right: 15px;
+    width: 50px;
+    text-align: center;
+}
+.ranking-imagem {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+.ranking-imagem.small {
+    width: 45px;
+    height: 45px;
+}
+.ranking-info {
+    flex: 1;
+}
+.ranking-info strong {
+    color: #333;
+}
+.current-user-tag {
+    color: #2196F3;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.ranking-subinfo {
+    font-size: 12px;
+    color: #666;
+}
+.ranking-merito {
+    text-align: right;
+}
+.ranking-pontos {
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF9800;
+}
+.ranking-label-merito {
+    font-size: 11px;
+    color: #666;
+}
+/* Ranking Simples */
+.ranking-item.simple {
+    padding: 15px;
+    margin: 10px 0;
+}
+.ranking-item.simple .ranking-posicao {
+    font-size: 20px;
+    width: 40px;
+}
+.ranking-item.simple .ranking-pontos {
+    font-size: 16px;
+}
+/* ============================================= */
+/* ESTILOS DE BUSCA                     */
+/* ============================================= */
+.modal-fullscreen-mobile .modal-content {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+}
+.busca-input-wrapper {
+    position: relative;
+    margin-bottom: 25px;
+}
+.busca-input {
+    width: 100%;
+    padding: 15px 50px 15px 20px;
+    font-size: 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 50px;
+    outline: none;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+.busca-input:focus {
+    border-color: #2196F3;
+    box-shadow: 0 0 10px rgba(33,150,243,0.2);
+}
+.busca-input-icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 20px;
+}
+
+.busca-filtros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 25px;
+}
+.filtro-busca {
+    padding: 12px;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: transform 0.2s ease;
+}
+.filtro-busca:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
+}
+.filtro-busca[data-categoria="usuarios"] { background: #2196F3; }
+.filtro-busca[data-categoria="jogos"] { background: #4CAF50; }
+.filtro-busca[data-categoria="apostas"] { background: #FF9800; }
+.filtro-busca[data-categoria="desafios"] { background: #9C27B0; }
+
+.busca-resultados {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.busca-contagem {
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 14px;
+}
+.busca-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin: 8px 0;
+    background: #f8f9fa;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.busca-item:hover {
+    background: #eee;
+}
+.busca-item-icon {
+    font-size: 24px;
+    margin-right: 15px;
+    width: 30px;
+    text-align: center;
+}
+.busca-item-info {
+    flex: 1;
+}
+.busca-item-subinfo {
+    font-size: 12px;
+    color: #666;
+}
+.busca-item-extra {
+    color: #FF9800;
+    font-weight: bold;
+}
+
+
+/* ============================================= */
+/* ESTILOS DE NOTIFICAÇÕES (PAINEL)     */
+/* ============================================= */
+.modal-custom.painel-lateral {
+    align-items: flex-start;
+    justify-content: flex-end;
+    background: none; /* Overlay separado cuida disso */
+    padding: 0;
+}
+.painel-lateral .modal-content {
+    width: 400px;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    animation: slideInRight 0.3s ease;
+}
+.painel-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.painel-subinfo {
+    margin-top: 10px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+.modal-btn-fechar-icon {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+.notificacao-secao {
+    color: #555;
+    margin: 15px 0 10px 0;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.notificacao-item {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border-left: 4px solid #ccc;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    transition: background 0.2s ease;
+}
+.notificacao-item.lida {
+    background: #fafafa;
+    opacity: 0.8;
+}
+.notificacao-item.nao-lida {
+    background: #e3f2fd;
+    border-left-color: #2196F3;
+}
+.notificacao-item:hover {
+    background: #f0f0f0;
+}
+.notificacao-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    margin-top: 2px;
+}
+.notificacao-conteudo {
+    flex: 1;
+}
+.notificacao-titulo {
+    color: #333;
+    margin-bottom: 4px;
+    font-weight: normal;
+}
+.notificacao-item.nao-lida .notificacao-titulo {
+    font-weight: bold;
+}
+.notificacao-mensagem {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+.notificacao-data {
+    font-size: 10px;
+    color: #999;
+    margin-top: 4px;
+}
+.notificacao-ponto {
+    width: 8px;
+    height: 8px;
+    background: #2196F3;
+    border-radius: 50%;
+    margin-left: 5px;
+    margin-top: 8px;
+}
+.modal-footer.botoes-duplos {
+    display: flex;
+    gap: 10px;
+}
+.modal-footer.botoes-duplos button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    background: #2196F3;
+    color: white;
+}
+.modal-footer.botoes-duplos button.btn-perigo,
+.modal-footer.botoes-duplos button.btn-cancelar {
+    background: #f44336;
+}
+.modal-footer.botoes-duplos button.btn-salvar {
+    background: #4CAF50;
+}
+
+
+/* ============================================= */
+/* ESTILOS DE NOTIFICAÇÕES (TOAST)      */
+/* ============================================= */
+
+.toast-notificacao {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 20000;
+    max-width: 350px;
+    animation: slideInRight 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+.toast-icon {
+    font-size: 20px;
+}
+.toast-content {
+    flex: 1;
+}
+.toast-content strong {
+    font-size: 15px;
+}
+.toast-content div {
+    font-size: 13px;
+    margin-top: 2px;
+    opacity: 0.9;
+}
+.toast-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    margin-left: 10px;
+    opacity: 0.7;
+}
+.toast-close:hover {
+    opacity: 1;
+}
+
+#badgeNotificacoes {
+    position: fixed;
+    /* Ajuste para não colidir com o menu de login */
+    top: 15px; 
+    right: 65px; /* (Supondo que o menu de login tenha 50px de largura + 15px de espaço) */
+    background: #f44336;
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 10000;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border: 2px solid white;
+}
+
+/* ============================================= */
+/* ESTILOS DE EVENTOS                   */
+/* ============================================= */
+.secao-titulo {
+    color: #333;
+    margin: 25px 0 15px 0;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #eee;
+}
+.evento-item {
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+.evento-item.ativo {
+    border: 2px solid #4CAF50;
+    background: #f1f8e9;
+}
+.evento-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 8px;
+}
+.evento-titulo {
+    margin: 0;
+    color: #2E7D32;
+}
+.evento-item.passado .evento-titulo {
+    font-weight: bold;
+    color: #666;
+}
+.evento-tempo {
+    background: #4CAF50;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+.evento-descricao {
+    margin: 0 0 12px 0;
+    color: #555;
+    font-size: 14px;
+}
+.evento-btn-participar {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s ease;
+}
+.evento-btn-participar:hover {
+    background: #388E3C;
+}
+.eventos-passados-lista {
+    opacity: 0.8;
+}
+.evento-item.passado {
+    border: 1px solid #e0e0e0;
+    background: #fafafa;
+    padding: 12px;
+}
+.evento-data {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ============================================= */
+/* ESTILOS DE CONFIGURAÇÕES             */
+/* ============================================= */
+.config-item {
+    margin-bottom: 20px;
+}
+.config-item label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+.config-item select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+/* ============================================= */
+/* ANIMAÇÕES                            */
+/* ============================================= */
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}

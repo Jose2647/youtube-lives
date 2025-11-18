@@ -1,0 +1,165 @@
+/* === HEADER FIXO E LOGIN === */
+header {
+/*
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+*/
+    max-width: calc(100vw - 20px);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+header button {
+    padding: 6px 10px;
+    font-size: 11px;
+    border: none;
+    border-radius: 4px;
+    background: #2196F3;
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+}
+header button:hover {
+    background: #1976D2;
+}
+/* ÍCONE DE PERFIL NO HEADER */
+.profile-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4CAF50, #2196F3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.2s ease;
+    font-weight: bold;
+    color: white;
+    font-size: 16px;
+}
+.profile-icon:hover {
+    transform: scale(1.1);
+}
+.profile-icon.logged-in {
+    background: linear-gradient(45deg, #FF9800, #FF5722);
+}
+/* CONTAINER DE LOGIN FLUTUANTE */
+.login-floating {
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 1001;
+    min-width: 200px;
+    border: 2px solid #2196F3;
+    display: none; /* Controlado por JS (classe .show) */
+}
+.login-floating.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.login-floating .user-info {
+    text-align: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.login-floating .user-name {
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 5px 0;
+    font-size: 14px;
+}
+.login-floating .user-merito {
+    color: #666;
+    font-size: 12px;
+    margin: 0;
+}
+.login-floating .user-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.login-floating button {
+    padding: 8px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.login-floating .btn-profile {
+    background: #4CAF50;
+    color: white;
+}
+.login-floating .btn-pix {
+    background: #2196F3;
+    color: white;
+}
+.login-floating .btn-logout {
+    background: #f44336;
+    color: white;
+}
+.login-floating .btn-login {
+    background: #4CAF50;
+    color: white;
+    padding: 10px;
+    font-size: 13px;
+}
+.login-floating button:hover {
+    opacity: 0.9;
+}
+/* OVERLAY PARA FECHAR AO CLICAR FORA */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    z-index: 1000;
+    display: none; /* Controlado por JS (classe .show) */
+}
+.overlay.show {
+    display: block;
+}
+
+/* MEDIA QUERIES PARA O HEADER */
+@media (max-width: 480px) {
+  
+   header {
+        position: relative;
+        top: auto;
+        right: auto;
+        max-width: 100%;
+        margin-bottom: 10px;
+        justify-content: center;
+    }
+    body {
+       /* padding-top: 10px; */
+    }
+    .login-floating {
+        top: 60px; 
+        right: 50%;
+        transform: translateX(50%);
+        min-width: 200px;
+    }
+    
+}
